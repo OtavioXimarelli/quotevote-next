@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ApolloProviderWrapper } from "@/lib/apollo-provider";
-import { ErrorBoundary } from "../components/ErrorBoundary";
+import { ApolloProviderWrapper } from "@/lib/apollo";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./globals.css";
 
 const geistSans = Geist({

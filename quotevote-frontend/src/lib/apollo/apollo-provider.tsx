@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ApolloProvider } from '@apollo/client/react';
 import { getApolloClient } from './apollo-client';
 
@@ -15,7 +15,10 @@ import { getApolloClient } from './apollo-client';
  * Wrap your Client Components with this provider in the root layout or a client boundary
  */
 export function ApolloProviderWrapper({ children }: { children: ReactNode }): ReactNode {
-  const client = getApolloClient();
+  // Memoize the client to prevent unnecessary re-creation
+  // getApolloClient() already handles singleton pattern, but this ensures
+  // the same reference is used across re-renders
+  const client = useMemo(() => getApolloClient(), []);
 
   return <ApolloProvider client={client}>{children}</ApolloProvider>;
 }
