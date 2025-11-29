@@ -102,9 +102,9 @@ export interface PresenceData {
 }
 
 /**
- * Presence subscription payload
+ * Presence subscription result
  */
-export interface PresenceSubscriptionPayload {
+export interface PresenceSubscriptionResult {
   /** Presence data from subscription */
   presence: PresenceData
 }

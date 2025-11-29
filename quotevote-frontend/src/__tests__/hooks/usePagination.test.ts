@@ -18,6 +18,18 @@ describe('usePagination', () => {
         jest.clearAllMocks()
         mockSearchParams = new URLSearchParams()
 
+        mockPush.mockImplementation((url: string) => {
+            const urlObj = new URL(url, 'http://localhost')
+            urlObj.searchParams.forEach((value, key) => {
+                mockSearchParams.set(key, value)
+            })
+            // Also handle removals if needed, but for now just setting is enough for these tests
+            // Actually, we should probably replace the params to be accurate
+            const newParams = new URLSearchParams(urlObj.search)
+            mockSearchParams = newParams
+                ; (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
+        })
+
             ; (useRouter as jest.Mock).mockReturnValue({ push: mockPush })
             ; (usePathname as jest.Mock).mockReturnValue(mockPathname)
             ; (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
@@ -142,6 +154,14 @@ describe('usePaginationWithFilters', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         mockSearchParams = new URLSearchParams()
+
+        mockPush.mockImplementation((url: string) => {
+            const urlObj = new URL(url, 'http://localhost')
+            // Reset params from URL
+            const newParams = new URLSearchParams(urlObj.search)
+            mockSearchParams = newParams
+                ; (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
+        })
 
             ; (useRouter as jest.Mock).mockReturnValue({ push: mockPush })
             ; (usePathname as jest.Mock).mockReturnValue(mockPathname)
