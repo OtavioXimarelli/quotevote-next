@@ -33,6 +33,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/components/ui/*": ["./src/components/ui/*"],
+      "@/components/common/*": ["./src/components/common/*"],
       "@/components/ErrorBoundary": ["./src/components/ErrorBoundary"],
       "@/components/LoadingSpinner": ["./src/components/LoadingSpinner"],
       "@/components/Avatar": ["./src/components/Avatar"],

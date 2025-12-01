@@ -101,3 +101,245 @@ export interface AlertListProps {
   className?: string;
 }
 
+export interface LoaderProps {
+  /**
+   * Size of the loader spinner
+   * @default 40
+   */
+  size?: number;
+  /**
+   * Custom loader styles
+   */
+  loaderStyle?: React.CSSProperties;
+  /**
+   * Whether to merge custom styles with default styles
+   * @default false
+   */
+  mergeStyles?: boolean;
+  /**
+   * Whether the loader should be absolutely positioned
+   * @default true
+   */
+  absolutelyPositioned?: boolean;
+  /**
+   * Additional props for the spinner wrapper
+   * Includes all standard div attributes plus data-* attributes
+   */
+  PulseLoaderProps?: React.HTMLAttributes<HTMLDivElement> & {
+    [key: `data-${string}`]: string | undefined;
+  };
+  /**
+   * Thickness of the spinner border
+   * @default 3.6
+   */
+  thickness?: number;
+  /**
+   * Optional loading label text
+   */
+  loadingLabel?: string;
+}
+
+export interface PaginationProps {
+  /**
+   * Current page number (1-indexed)
+   */
+  currentPage: number;
+  /**
+   * Total number of pages
+   */
+  totalPages: number;
+  /**
+   * Total number of items
+   */
+  totalCount: number;
+  /**
+   * Number of items per page
+   */
+  pageSize: number;
+  /**
+   * Callback when page changes
+   */
+  onPageChange: (page: number) => void;
+  /**
+   * Whether to show page info (e.g., "1-20 of 100")
+   * @default true
+   */
+  showPageInfo?: boolean;
+  /**
+   * Whether to show first/last page buttons
+   * @default true
+   */
+  showFirstLast?: boolean;
+  /**
+   * Maximum number of visible page buttons
+   * @default 5
+   */
+  maxVisiblePages?: number;
+  /**
+   * Whether pagination is disabled
+   * @default false
+   */
+  disabled?: boolean;
+}
+
+export interface StickyPaginationWrapperProps {
+  /**
+   * Child content to wrap
+   */
+  children: React.ReactNode;
+  /**
+   * Pagination component to display at the bottom
+   */
+  pagination?: React.ReactNode;
+  /**
+   * Additional CSS classes
+   */
+  className?: string;
+}
+
+export interface PaginatedListProps<T = unknown> {
+  // Data props
+  /**
+   * Array of data items to paginate
+   */
+  data?: T[];
+  /**
+   * Whether data is currently loading
+   * @default false
+   */
+  loading?: boolean;
+  /**
+   * Error object if data fetch failed
+   */
+  error?: Error | { message?: string };
+  /**
+   * Total count of items (required for pagination)
+   */
+  totalCount: number;
+  
+  // Pagination props
+  /**
+   * Default page size
+   * @default 20
+   */
+  defaultPageSize?: number;
+  /**
+   * URL parameter name for page
+   * @default 'page'
+   */
+  pageParam?: string;
+  /**
+   * URL parameter name for page size
+   * @default 'page_size'
+   */
+  pageSizeParam?: string;
+  /**
+   * Whether to show page info
+   * @default true
+   */
+  showPageInfo?: boolean;
+  /**
+   * Whether to show first/last page buttons
+   * @default true
+   */
+  showFirstLast?: boolean;
+  /**
+   * Maximum number of visible page buttons
+   * @default 5
+   */
+  maxVisiblePages?: number;
+  
+  // Render props
+  /**
+   * Function to render each item
+   */
+  renderItem?: (item: T, index: number) => React.ReactNode;
+  /**
+   * Custom empty state renderer
+   */
+  renderEmpty?: () => React.ReactNode;
+  /**
+   * Custom error state renderer
+   */
+  renderError?: (error: Error | { message?: string }, onRefresh?: () => void) => React.ReactNode;
+  /**
+   * Custom loading state renderer
+   */
+  renderLoading?: () => React.ReactNode;
+  
+  // Callbacks
+  /**
+   * Callback when page changes
+   */
+  onPageChange?: (page: number) => void;
+  /**
+   * Callback when page size changes
+   */
+  onPageSizeChange?: (pageSize: number) => void;
+  /**
+   * Callback to refresh/retry data fetch
+   */
+  onRefresh?: () => void;
+  
+  // Styling
+  /**
+   * Additional CSS classes for root container
+   */
+  className?: string;
+  /**
+   * Additional CSS classes for content area
+   */
+  contentClassName?: string;
+  /**
+   * Additional CSS classes for pagination
+   */
+  paginationClassName?: string;
+  
+  // Other props
+  /**
+   * Child content (alternative to renderItem)
+   */
+  children?: React.ReactNode;
+}
+
+export interface SEOHeadProps {
+  /**
+   * Page title
+   */
+  title?: string;
+  /**
+   * Page description
+   */
+  description?: string;
+  /**
+   * Canonical URL
+   */
+  canonicalUrl?: string;
+  /**
+   * Previous page URL (for pagination)
+   */
+  prevUrl?: string;
+  /**
+   * Next page URL (for pagination)
+   */
+  nextUrl?: string;
+  /**
+   * Keywords meta tag
+   */
+  keywords?: string;
+  /**
+   * Open Graph image URL
+   */
+  ogImage?: string;
+  /**
+   * Open Graph type
+   * @default 'website'
+   */
+  ogType?: string;
+  /**
+   * Whether to set noindex, nofollow
+   * @default false
+   */
+  noIndex?: boolean;
+}
+
