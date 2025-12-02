@@ -3,9 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import type { EmailSentProps } from '@/types/components';
 
-export function EmailSent(_props: EmailSentProps) {
+export function EmailSent() {
   const router = useRouter();
 
   const handleLogin = () => {

@@ -434,9 +434,8 @@ export interface SignOutButtonProps extends React.ComponentProps<'button'> {
   className?: string;
 }
 
-export interface GetAccessButtonProps {
-  // No props - this is a self-contained button
-}
+// GetAccessButton component has no props
+export type GetAccessButtonProps = Record<string, never>;
 
 export interface SettingsSaveButtonProps extends React.ComponentProps<'button'> {
   /**
@@ -476,9 +475,7 @@ export interface SettingsIconButtonProps {
   fontSize?: string;
 }
 
-export interface SelectPlansButtonProps extends React.ComponentProps<'button'> {
-  // Extends button props
-}
+export type SelectPlansButtonProps = React.ComponentProps<'button'>;
 
 // Password Reset Component Types
 export interface ForgotPasswordFormProps {

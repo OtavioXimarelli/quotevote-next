@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, startTransition } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type {
     PaginationOptions,
@@ -102,20 +102,25 @@ export const usePagination = ({
 
         // Update page if URL has a valid page number and it's different from current
         if (newUrlPage && newUrlPage > 0 && newUrlPage !== currentPage) {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            setCurrentPage(newUrlPage)
-            onPageChange?.(newUrlPage)
+            startTransition(() => {
+                setCurrentPage(newUrlPage)
+                onPageChange?.(newUrlPage)
+            })
         }
         // If URL doesn't have a page parameter but we're not on page 1, reset to page 1
         else if (!newUrlPage && currentPage !== 1) {
-            setCurrentPage(1)
-            onPageChange?.(1)
+            startTransition(() => {
+                setCurrentPage(1)
+                onPageChange?.(1)
+            })
         }
 
         // Update page size if URL has a valid page size and it's different from current
         if (newUrlPageSize && newUrlPageSize > 0 && newUrlPageSize !== pageSize) {
-            setPageSize(newUrlPageSize)
-            onPageSizeChange?.(newUrlPageSize)
+            startTransition(() => {
+                setPageSize(newUrlPageSize)
+                onPageSizeChange?.(newUrlPageSize)
+            })
         }
     }, [searchParams, pageParam, pageSizeParam, currentPage, pageSize, onPageChange, onPageSizeChange])
 
