@@ -151,3 +151,73 @@ export const SUBMIT_POST = gql`
     }
   }
 `
+
+/**
+ * Delete comment mutation
+ */
+export const DELETE_COMMENT = gql`
+  mutation DeleteComment($commentId: ID!) {
+    deleteComment(commentId: $commentId) {
+      _id
+    }
+  }
+`
+
+/**
+ * Add comment mutation
+ */
+export const ADD_COMMENT = gql`
+  mutation AddComment($comment: CommentInput!) {
+    addComment(comment: $comment) {
+      _id
+      userId
+      content
+      created
+      user {
+        _id
+        username
+        avatar
+      }
+    }
+  }
+`
+
+/**
+ * Update comment mutation
+ */
+export const UPDATE_COMMENT = gql`
+  mutation UpdateComment($commentId: ID!, $content: String!) {
+    updateComment(commentId: $commentId, content: $content) {
+      _id
+      content
+    }
+  }
+`
+
+/**
+ * Add action reaction mutation
+ */
+export const ADD_ACTION_REACTION = gql`
+  mutation AddActionReaction($reaction: ReactionInput!) {
+    addActionReaction(reaction: $reaction) {
+      _id
+      userId
+      actionId
+      emoji
+    }
+  }
+`
+
+/**
+ * Update action reaction mutation
+ */
+export const UPDATE_ACTION_REACTION = gql`
+  mutation UpdateActionReaction($_id: ID!, $emoji: String!) {
+    updateActionReaction(_id: $_id, emoji: $emoji) {
+      _id
+      userId
+      actionId
+      emoji
+    }
+  }
+`

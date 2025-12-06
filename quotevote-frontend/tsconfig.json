@@ -80,6 +80,12 @@
       "@/components/SubmitPost/*": [
         "./src/components/SubmitPost/*"
       ],
+      "@/components/Comment": [
+        "./src/components/Comment"
+      ],
+      "@/components/Comment/*": [
+        "./src/components/Comment/*"
+      ],
       "@/components/*": [
         "./src/app/components/*"
       ],

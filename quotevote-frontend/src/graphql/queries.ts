@@ -79,3 +79,17 @@ export const GROUPS_QUERY = gql`
     }
   }
 `
+
+/**
+ * Get action reactions query
+ */
+export const GET_ACTION_REACTIONS = gql`
+  query GetActionReactions($actionId: ID!) {
+    actionReactions(actionId: $actionId) {
+      _id
+      userId
+      actionId
+      emoji
+    }
+  }
+`
