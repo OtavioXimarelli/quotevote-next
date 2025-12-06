@@ -45,6 +45,11 @@ quotevote-next/
 - **GraphQL**: Apollo Server
 - **Database**: MongoDB with Mongoose
 
+## 🎨 Design Resources
+
+- **[UI Design Inspiration (Figma)](https://www.figma.com/design/b4zMmypvTj7R9HgcWUwGHM/Quote.Vote-User-Interface-Design)**
+- **[UI Design Specifications (Zeplin)](https://zpl.io/VDlzXPg)**
+
 ## 📋 Prerequisites
 
 - **Node.js**: 20.x or higher
@@ -90,14 +95,11 @@ For detailed backend documentation, see the [Backend README](./quotevote-backend
 - **[Backend Documentation](./quotevote-backend/README.md)** - Complete guide for the Express backend
 - **[Migration Rules](./docs/Migration-Rules.md)** - Detailed migration guidelines and best practices
 
-## 🎨 Design Resources
-
-- **[UI Design Inspiration (Figma)](https://www.figma.com/design/b4zMmypvTj7R9HgcWUwGHM/Quote.Vote-User-Interface-Design)** - Design inspiration and UI patterns (work in progress)
-
 ## 🔄 Legacy Codebase
 
 This project is a complete migration from the legacy codebase:
 
+- **[Legacy Quotevote Repo](https://github.com/QuoteVote/quotevote-monorepo)** - Monorepo containing both frontend and backend code
 - **[Legacy Frontend](https://github.com/QuoteVote/quotevote-monorepo/tree/main/client)** - Original React 17/Vite codebase
 - **[Legacy Backend](https://github.com/QuoteVote/quotevote-monorepo/tree/main/server)** - Original JavaScript/Babel/Express 4 codebase
 
