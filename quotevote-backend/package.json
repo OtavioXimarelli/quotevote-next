@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch app/server.ts",
     "build": "tsc",
-    "start": "node dist/app/server.js"
+    "start": "node dist/app/server.js",
+    "lint": "eslint ."
   },
   "keywords": [],
   "author": "",
@@ -27,6 +28,7 @@
     "winston": "^3.18.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/bcryptjs": "^3.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -37,11 +39,16 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.10.1",
     "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.49.0"
   }
 }

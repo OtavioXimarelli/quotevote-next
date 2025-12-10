@@ -37,7 +37,7 @@ async function startServer() {
     resolvers: {
       Query: {
         hello: () => 'Hello from TypeScript Backend! 🚀',
-        status: () => 'Active & Migrated successfully',
+        status: () => 'Active',
       },
     },
   });
