@@ -92,6 +92,12 @@
       "@/components/Quotes/*": [
         "./src/components/Quotes/*"
       ],
+      "@/components/PostChat/*": [
+        "./src/components/PostChat/*"
+      ],
+      "@/components/Chat/*": [
+        "./src/components/Chat/*"
+      ],
       "@/components/*": [
         "./src/app/components/*"
       ],
