@@ -98,11 +98,23 @@
       "@/components/SubHeader": [
         "./src/components/SubHeader"
       ],
+      "@/components/BuddyList": [
+        "./src/components/BuddyList"
+      ],
+      "@/components/BuddyList/*": [
+        "./src/components/BuddyList/*"
+      ],
       "@/components/Icons": [
         "./src/components/Icons"
       ],
       "@/components/Icons/*": [
         "./src/components/Icons/*"
+      ],
+      "@/components/Chat": [
+        "./src/components/Chat"
+      ],
+      "@/components/Chat/*": [
+        "./src/components/Chat/*"
       ],
       "@/hooks/*": [
         "./src/hooks/*"
