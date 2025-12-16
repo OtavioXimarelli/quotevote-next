@@ -12,6 +12,9 @@ const config: Config = {
   
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/.next/'],
   
+  // Setup files for global test configuration
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: 'tsconfig.json'
