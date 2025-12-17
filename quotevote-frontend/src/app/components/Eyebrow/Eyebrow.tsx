@@ -15,11 +15,6 @@ export function Eyebrow() {
   const user = useAppStore((state) => state.user.data);
   const loggedIn = !!user?.id;
 
-  // We don't render component if user is authenticated
-  if (loggedIn) {
-    return;
-  }
-
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<string | undefined>();
 
@@ -39,6 +34,11 @@ export function Eyebrow() {
       email: "",
     },
   });
+
+  // We don't render component if user is authenticated
+  if (loggedIn) {
+    return;
+  }
 
   const handleContinue = async (data: EyebrowFormData) => {
     try {
@@ -67,7 +67,7 @@ export function Eyebrow() {
           openOnboardingCompletionModal();
           break;
       }
-    } catch (err) {
+    } catch {
       setFeedback("An error has occured");
     } finally {
       setIsLoading(false);
