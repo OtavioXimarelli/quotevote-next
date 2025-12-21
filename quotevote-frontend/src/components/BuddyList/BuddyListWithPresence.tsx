@@ -11,42 +11,7 @@ import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import Avatar from '@/components/Avatar'; // Import our new Avatar
 import BuddyItemList from './BuddyItemList';
-
-// Types
-interface Presence {
-    status: string;
-    statusMessage?: string;
-    lastSeen?: number;
-}
-
-interface User {
-    _id: string;
-    name: string;
-    username: string;
-    avatar: string | null;
-}
-
-interface Buddy {
-    id: string;
-    buddyId: string;
-    status: string;
-    user?: User; // Depending on query response structure
-    buddy?: User;
-    presence?: Presence;
-}
-
-// interface RosterItem {
-//     id: string;
-//     buddyId: string;
-//     userId?: string;
-//     status: string;
-//     initiatedBy?: string;
-//     buddy?: User;
-// }
-
-interface BuddyListWithPresenceProps {
-    search?: string;
-}
+import { Buddy, BuddyItem, BuddyListWithPresenceProps, Presence, GetBuddyListData, GetRosterData } from '@/types/buddylist';
 
 export default function BuddyListWithPresence({ search = '' }: BuddyListWithPresenceProps) {
     const currentUser = useAppStore((state) => state.user.data);
@@ -56,12 +21,12 @@ export default function BuddyListWithPresence({ search = '' }: BuddyListWithPres
 
     const presenceMap = useAppStore((state) => state.chat.presenceMap) as Record<string, Presence>;
 
-    const { loading, data, refetch, error: buddyListError } = useQuery<any>(GET_BUDDY_LIST, {
+    const { loading, data, refetch, error: buddyListError } = useQuery<GetBuddyListData>(GET_BUDDY_LIST, {
         fetchPolicy: 'cache-and-network',
         skip: !currentUser?._id,
     });
 
-    const { data: rosterData, refetch: refetchRoster, error: rosterError } = useQuery<any>(GET_ROSTER, {
+    const { data: rosterData, refetch: refetchRoster, error: rosterError } = useQuery<GetRosterData>(GET_ROSTER, {
         fetchPolicy: 'cache-and-network',
         skip: !currentUser?._id,
     });
@@ -99,7 +64,7 @@ export default function BuddyListWithPresence({ search = '' }: BuddyListWithPres
         // So I can just use `rosterData.roster.pendingRequests`.
 
         const requests = rosterData.roster?.pendingRequests || [];
-        return requests.filter((_: any) => {
+        return requests.filter(() => {
             // We only want RECEIVED requests.
             // If the API puts them in `pendingRequests`, they might be mixed sent/received?
             // Usually `pendingRequests` in a roster query implies "requests waiting for ME".
@@ -122,10 +87,10 @@ export default function BuddyListWithPresence({ search = '' }: BuddyListWithPres
             });
             refetchRoster();
             refetch();
-        } catch (error: any) {
+        } catch (error) {
             setSnackbar({
                 open: true,
-                message: error.message || 'Failed to accept buddy request',
+                message: (error as Error).message || 'Failed to accept buddy request',
                 type: 'danger',
             });
         }
@@ -141,10 +106,10 @@ export default function BuddyListWithPresence({ search = '' }: BuddyListWithPres
             });
             refetchRoster();
             refetch();
-        } catch (error: any) {
+        } catch (error) {
             setSnackbar({
                 open: true,
-                message: error.message || 'Failed to decline buddy request',
+                message: (error as Error).message || 'Failed to decline buddy request',
                 type: 'danger',
             });
         }
@@ -171,7 +136,7 @@ export default function BuddyListWithPresence({ search = '' }: BuddyListWithPres
     const buddies = (data?.buddyList || []) as Buddy[];
 
     // Group by presence
-    const groupedBuddies: Record<string, any[]> = {
+    const groupedBuddies: Record<string, BuddyItem[]> = {
         online: [],
         away: [],
         dnd: [],
@@ -204,7 +169,7 @@ export default function BuddyListWithPresence({ search = '' }: BuddyListWithPres
         }
     });
 
-    const filterBuddies = (list: any[]) => {
+    const filterBuddies = (list: BuddyItem[]) => {
         if (!list) return [];
         if (!search) return list;
         return list.filter((b) => {
@@ -236,13 +201,13 @@ export default function BuddyListWithPresence({ search = '' }: BuddyListWithPres
                         </span>
                     </div>
                     <div className="flex flex-col gap-1">
-                        {pendingRequests.map((req: any) => {
+                        {pendingRequests.map((req: Buddy) => {
                             const buddy = req.buddy;
                             if (!buddy) return null;
                             return (
                                 <div key={req.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-100 shadow-sm">
                                     <Avatar
-                                        src={buddy.avatar}
+                                        src={buddy.avatar || undefined}
                                         alt={buddy.username}
                                         fallback={buddy.username?.[0]}
                                         size="sm"

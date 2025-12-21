@@ -2,9 +2,10 @@
 
 // import { useState } from 'react';
 import BuddyItemList from '@/components/BuddyList/BuddyItemList';
+import { BuddyItem } from '@/types/buddylist';
 
 // Mock data
-const mockBuddies: any[] = [
+const mockBuddies: BuddyItem[] = [
     {
         _id: '1',
         user: { _id: 'u1', name: 'Alice Wonderland', username: 'alice', avatar: null },
@@ -15,7 +16,7 @@ const mockBuddies: any[] = [
     {
         _id: '2',
         user: { _id: 'u2', name: 'Bob Builder', username: 'bob', avatar: null },
-        presence: { status: 'busy', statusMessage: 'Building things' },
+        presence: { status: 'dnd', statusMessage: 'Building things' },
         unreadMessages: 0,
         type: 'USER',
     },
@@ -28,10 +29,11 @@ const mockBuddies: any[] = [
     },
     {
         _id: '4',
+        // @ts-expect-error Mocking room structure partially
         room: { _id: 'r1', title: 'Cool Group', messageType: 'POST', avatar: null },
         type: 'POST',
         unreadMessages: 5,
-        presence: null,
+        // presence: null, 
     }
 ];
 

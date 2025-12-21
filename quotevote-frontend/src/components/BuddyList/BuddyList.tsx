@@ -6,14 +6,7 @@ import { isEmpty } from 'lodash';
 import { GET_CHAT_ROOMS } from '@/graphql/queries';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import BuddyItemList from './BuddyItemList';
-
-interface BuddyListProps {
-    search?: string;
-}
-
-interface GetChatRoomsData {
-    messageRooms: any[];
-}
+import { BuddyListProps, GetChatRoomsData } from '@/types/buddylist';
 
 export default function BuddyList({ search }: BuddyListProps) {
     const { loading, error, data } = useQuery<GetChatRoomsData>(GET_CHAT_ROOMS, {
@@ -26,19 +19,19 @@ export default function BuddyList({ search }: BuddyListProps) {
         }
 
         return [...data.messageRooms]
-            .sort((a: any, b: any) => new Date(b.created).getTime() - new Date(a.created).getTime())
-            .map((item: any) => ({
+            .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+            .map((item) => ({
                 room: item,
-                Text: item.title,
-                type: item.messageType,
+                Text: item.title || undefined,
+                type: (item.messageType === 'USER' || item.messageType === 'POST') ? (item.messageType as 'USER' | 'POST') : undefined,
                 avatar: item.avatar,
-                unreadMessages: item.unreadMessages,
+                unreadMessages: item.unreadMessages || 0,
                 // user: null? This list is for open chats/rooms
             }));
     }, [data, loading, error]);
 
     const filteredBuddyList = search
-        ? buddyList.filter((buddy: any) =>
+        ? buddyList.filter((buddy) =>
             buddy.Text?.toLowerCase().includes(search.toLowerCase())
         )
         : buddyList;

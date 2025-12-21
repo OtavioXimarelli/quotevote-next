@@ -9,54 +9,23 @@ import { cn } from '@/lib/utils';
 import Avatar from '@/components/Avatar';
 import PresenceIcon from '@/components/Chat/PresenceIcon';
 import StatusMessage from '@/components/Chat/StatusMessage';
-// import { Badge } from '@/components/ui/badge'; // Warning: Verify if this exists, otherwise fallback
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { BuddyItem, BuddyItemListProps, PresenceStatus } from '@/types/buddylist';
+import { ChatRoom } from '@/types/chat';
 
-// Interfaces based on usage
-interface User {
-    _id: string;
-    name?: string;
-    username?: string;
-    avatar?: string | null;
-}
 
-interface Room {
-    _id: string;
-    users?: string[];
-    messageType?: 'USER' | 'POST';
-    title?: string;
-    avatar?: string | null;
-}
-
-interface BuddyItem {
-    _id?: string; // Sometimes item itself has _id?
-    room?: Room | null;
-    user?: User | null;
-    Text?: string; // From old mapping
-    messageType?: 'USER' | 'POST'; // From old mapping
-    type?: 'USER' | 'POST'; // From old mapping
-    avatar?: any; // From old mapping
-    unreadMessages?: number;
-    presence?: any;
-    statusMessage?: string;
-}
-
-interface BuddyItemListProps {
-    buddyList: BuddyItem[];
-    className?: string;
-}
 
 const emptyData: BuddyItem[] = [
-    { Text: 'Car Shark', type: 'USER', avatar: {} },
-    { Text: 'Four Aces', type: 'POST', avatar: {} },
-    { Text: 'Peter Parker', type: 'USER', avatar: {} },
-    { Text: 'Lebron James', type: 'USER', avatar: {} },
-    { Text: 'Twitter', type: 'POST', avatar: {} },
+    { Text: 'Car Shark', type: 'USER', avatar: null },
+    { Text: 'Four Aces', type: 'POST', avatar: null },
+    { Text: 'Peter Parker', type: 'USER', avatar: null },
+    { Text: 'Lebron James', type: 'USER', avatar: null },
+    { Text: 'Twitter', type: 'POST', avatar: null },
 ];
 
 const TruncatedText = ({ text, className }: { text: string; className?: string }) => {
@@ -99,7 +68,7 @@ const TruncatedText = ({ text, className }: { text: string; className?: string }
 export default function BuddyItemList({ buddyList, className }: BuddyItemListProps) {
     const currentUser = useAppStore((state) => state.user.data);
     const setSelectedChatRoom = useAppStore((state) => state.setSelectedChatRoom);
-    const [getChatRoom] = useLazyQuery<any>(GET_CHAT_ROOM);
+    const [getChatRoom] = useLazyQuery<{ messageRoom: ChatRoom }>(GET_CHAT_ROOM);
 
     const itemList = buddyList && buddyList.length > 0 ? buddyList : emptyData;
     const isEmptyList = !buddyList || buddyList.length === 0;
@@ -130,12 +99,9 @@ export default function BuddyItemList({ buddyList, className }: BuddyItemListPro
                 } else {
                     // Room does not exist. 
                     // In new architecture, we might need a way to stage a new room.
-                    // For now, we'll log.
-                    console.warn('Chat room not found for user. Room creation required.');
-                    // Potentially open "New Chat" modal or set a special state if supported.
                 }
-            } catch (error) {
-                console.error('Error fetching chat room:', error);
+            } catch {
+                // Handle error silently or via toast
             }
         }
     };
@@ -181,7 +147,8 @@ function BuddyItemRow({ item, onClick }: { item: BuddyItem; onClick: () => void 
 
     // Avatar source resolution
     // Old code: <AvatarDisplay ... {...item.avatar} /> or item.user.avatar
-    const avatarSrc = item.avatar?.url || item.avatar || item.user?.avatar || item.room?.avatar;
+    const rawAvatar = item.avatar || item.user?.avatar || item.room?.avatar;
+    const avatarSrc = typeof rawAvatar === 'string' ? rawAvatar : rawAvatar?.url || undefined;
 
     return (
         <li
@@ -207,7 +174,7 @@ function BuddyItemRow({ item, onClick }: { item: BuddyItem; onClick: () => void 
                 <div className="flex items-center gap-2 max-w-full">
                     {/* Presence Icon */}
                     {item.presence && item.presence.status ? (
-                        <PresenceIcon status={item.presence.status} />
+                        <PresenceIcon status={item.presence.status as PresenceStatus} />
                     ) : null}
 
                     <TruncatedText text={itemText} className="font-medium text-sm text-gray-900 flex-1 min-w-0" />

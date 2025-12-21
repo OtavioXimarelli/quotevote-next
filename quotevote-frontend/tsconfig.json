@@ -99,6 +99,7 @@
         "./src/components/Chat/*"
       ],
       "@/components/*": [
+        "./src/components/*",
         "./src/app/components/*"
       ],
       "@/components/SubHeader": [
