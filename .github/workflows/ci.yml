@@ -32,7 +32,7 @@ jobs:
           cache-dependency-path: quotevote-backend/pnpm-lock.yaml
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-workspace
       
       - name: Run linter
         run: pnpm lint
@@ -68,7 +68,7 @@ jobs:
           cache-dependency-path: quotevote-frontend/pnpm-lock.yaml
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-workspace
       
       - name: Run linter
         run: pnpm lint
