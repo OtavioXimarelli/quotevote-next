@@ -718,3 +718,195 @@ export interface LatestQuotesProps {
   limit?: number;
 }
 
+// RequestAccess Component Types
+export interface RequestAccessFormProps {
+  /**
+   * Callback function called when request is successful
+   */
+  onSuccess?: () => void;
+}
+
+export interface CardDetails {
+  cardNumber: string;
+  expiry: string;
+  cvv: string;
+  cost: string;
+}
+
+export interface PersonalFormProps {
+  /**
+   * Whether the request invite was successful
+   */
+  requestInviteSuccessful: boolean;
+  /**
+   * React Hook Form handleSubmit function
+   */
+  handleSubmit: (onSubmit: (data: unknown) => void) => (e?: React.BaseSyntheticEvent) => Promise<void>;
+  /**
+   * Whether the form has been continued to payment step
+   */
+  isContinued: boolean;
+  /**
+   * Callback when continue button is clicked
+   */
+  onContinue: (data: { firstName: string; lastName: string; email: string }) => void;
+  /**
+   * Form errors from react-hook-form
+   */
+  errors: Record<string, { message?: string }>;
+  /**
+   * React Hook Form register function
+   */
+  register: (rules?: unknown) => (ref: HTMLInputElement | null) => void;
+  /**
+   * Callback to set card details
+   */
+  setCardDetails: (details: CardDetails | ((prev: CardDetails) => CardDetails)) => void;
+  /**
+   * Current card details
+   */
+  cardDetails: CardDetails;
+  /**
+   * Callback when form is submitted
+   */
+  onSubmit: () => void | Promise<void>;
+  /**
+   * Error message to display
+   */
+  errorMessage?: string | null;
+  /**
+   * Whether the form is in loading state
+   */
+  loading?: boolean;
+}
+
+export interface BusinessFormProps {
+  /**
+   * Whether the request invite was successful
+   */
+  requestInviteSuccessful: boolean;
+  /**
+   * React Hook Form handleSubmit function
+   */
+  handleSubmit: (onSubmit: (data: unknown) => void) => (e?: React.BaseSyntheticEvent) => Promise<void>;
+  /**
+   * Whether the form has been continued to payment step
+   */
+  isContinued: boolean;
+  /**
+   * Callback when continue button is clicked
+   */
+  onContinue: (data: { fullName: string; companyName: string; email: string }) => void;
+  /**
+   * Form errors from react-hook-form
+   */
+  errors: Record<string, { message?: string }>;
+  /**
+   * React Hook Form register function
+   */
+  register: (rules?: unknown) => (ref: HTMLInputElement | null) => void;
+  /**
+   * Callback to set card details
+   */
+  setCardDetails: (details: CardDetails | ((prev: CardDetails) => CardDetails)) => void;
+  /**
+   * Current card details
+   */
+  cardDetails: CardDetails;
+  /**
+   * Callback when form is submitted
+   */
+  onSubmit: () => void | Promise<void>;
+  /**
+   * Error message to display
+   */
+  errorMessage?: string | null;
+  /**
+   * Whether the form is in loading state
+   */
+  loading?: boolean;
+}
+
+export interface PaymentMethodProps {
+  /**
+   * Whether the form has been continued to payment step
+   */
+  isContinued: boolean;
+  /**
+   * Current card details
+   */
+  cardDetails: CardDetails;
+  /**
+   * Callback when form is submitted
+   */
+  onSubmit: () => void | Promise<void>;
+  /**
+   * Callback to set card details
+   */
+  setCardDetails: (details: CardDetails | ((prev: CardDetails) => CardDetails)) => void;
+  /**
+   * Whether this is for personal plan (allows custom cost)
+   * @default true
+   */
+  isPersonal?: boolean;
+  /**
+   * Error message to display
+   */
+  errorMessage?: string | null;
+  /**
+   * Whether the form is in loading state
+   */
+  loading?: boolean;
+}
+
+export interface CreditCardInputProps {
+  /**
+   * Props for card number input
+   */
+  cardNumberInputProps?: {
+    value?: string;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onError?: () => void;
+    autoFocus?: boolean;
+    inputProps?: Record<string, unknown>;
+  };
+  /**
+   * Props for expiry input
+   */
+  cardExpiryInputProps?: {
+    value?: string;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onError?: () => void;
+    inputProps?: Record<string, unknown>;
+  };
+  /**
+   * Props for CVC input
+   */
+  cardCVCInputProps?: {
+    value?: string;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onError?: () => void;
+    inputProps?: Record<string, unknown>;
+  };
+  /**
+   * Container style
+   */
+  containerStyle?: React.CSSProperties;
+  /**
+   * Input style
+   */
+  inputStyle?: React.CSSProperties;
+  /**
+   * Custom text labels
+   */
+  customTextLabels?: {
+    cardNumberPlaceholder?: string;
+  };
+  /**
+   * Field class name
+   */
+  fieldClassName?: string;
+}
+
+export type PlansProps = Record<string, never>;
+

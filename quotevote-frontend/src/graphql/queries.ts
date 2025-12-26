@@ -733,3 +733,13 @@ export const GET_NOTIFICATIONS = gql`
     }
   }
 `
+
+/**
+ * Check duplicate email query
+ * Used to verify if an email has already been used to request an invite
+ */
+export const GET_CHECK_DUPLICATE_EMAIL = gql`
+  query checkDuplicateEmail($email: String!) {
+    checkDuplicateEmail(email: $email)
+  }
+`

@@ -504,3 +504,16 @@ export const DELETE_NOTIFICATION = gql`
     }
   }
 `
+
+/**
+ * Request user access mutation
+ * Used for requesting platform access via email invitation
+ */
+export const REQUEST_USER_ACCESS_MUTATION = gql`
+  mutation requestUserAccess($requestUserAccessInput: RequestUserAccessInput!) {
+    requestUserAccess(requestUserAccessInput: $requestUserAccessInput) {
+      _id
+      email
+    }
+  }
+`
