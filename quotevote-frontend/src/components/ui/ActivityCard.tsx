@@ -170,6 +170,8 @@ export const ActivityCard = memo(function ActivityCard({
   post = {},
   activityType = '',
 }: ActivityCardProps) {
+  // name prop is kept for API compatibility but username is used for display
+  void _name
   const interactions: unknown[] = []
 
   if (!isEmpty(comments)) {

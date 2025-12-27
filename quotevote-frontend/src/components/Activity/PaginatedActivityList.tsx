@@ -182,7 +182,7 @@ export function PaginatedActivityList({
   maxVisiblePages = 5,
   onPageChange,
   onPageSizeChange,
-  onRefresh: _onRefresh,
+  onRefresh,
   className,
   contentClassName,
   paginationClassName,
@@ -309,7 +309,7 @@ export function PaginatedActivityList({
       renderEmpty={renderEmpty}
       renderError={renderError}
       renderLoading={renderLoading}
-      onRefresh={refetch}
+      onRefresh={onRefresh ?? refetch}
       className={className}
       contentClassName={contentClassName}
       paginationClassName={paginationClassName}

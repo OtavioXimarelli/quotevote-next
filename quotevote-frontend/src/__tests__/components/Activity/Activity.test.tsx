@@ -35,10 +35,15 @@ jest.mock('@/components/ErrorBoundary', () => ({
 }))
 
 describe('Activity', () => {
+  const mockSetFilterValue = jest.fn()
+
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(useAppStore as unknown as jest.Mock).mockReturnValue({
-      setFilterValue: jest.fn(),
+    ;(useAppStore as unknown as jest.Mock).mockImplementation((selector) => {
+      const mockState = {
+        setFilterValue: mockSetFilterValue,
+      }
+      return selector ? selector(mockState) : mockState
     })
   })
 

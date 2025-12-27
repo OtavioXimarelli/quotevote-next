@@ -27,7 +27,7 @@ describe('ActivityEmptyList', () => {
     jest.clearAllMocks()
     ;(useAppStore as unknown as jest.Mock).mockImplementation((selector: (state: { setSelectedPage: jest.Mock }) => unknown) => {
       if (selector) {
-        return selector({ setSelectedPage: mockSetSelectedPage } as any)
+        return selector({ setSelectedPage: mockSetSelectedPage } as { setSelectedPage: jest.Mock })
       }
       return { setSelectedPage: mockSetSelectedPage }
     })
