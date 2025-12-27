@@ -692,34 +692,94 @@ export const GET_USERS = gql`
  * Get user activity query
  */
 export const GET_USER_ACTIVITY = gql`
-  query getUserActivity(
+  query activities(
+    $user_id: String!
     $limit: Int!
     $offset: Int!
     $searchKey: String!
-    $activityEvent: [String!]
-    $user_id: String!
     $startDateRange: String
     $endDateRange: String
+    $activityEvent: JSON!
   ) {
-    getUserActivity(
+    activities(
+      user_id: $user_id
       limit: $limit
       offset: $offset
       searchKey: $searchKey
-      activityEvent: $activityEvent
-      user_id: $user_id
       startDateRange: $startDateRange
       endDateRange: $endDateRange
+      activityEvent: $activityEvent
     ) {
       entities {
-        _id
-        userId
-        activityType
         created
+        postId
+        userId
+        user {
+          _id
+          name
+          username
+          avatar
+          contributorBadge
+        }
+        activityType
+        content
         post {
           _id
           title
           text
           url
+          upvotes
+          downvotes
+          votes {
+            _id
+          }
+          quotes {
+            _id
+          }
+          comments {
+            _id
+          }
+          messageRoom {
+            _id
+            messages {
+              _id
+            }
+          }
+          bookmarkedBy
+          created
+          creator {
+            _id
+            name
+            username
+            avatar
+            contributorBadge
+          }
+        }
+        voteId
+        vote {
+          _id
+          startWordIndex
+          endWordIndex
+          created
+          type
+          tags
+        }
+        commentId
+        comment {
+          _id
+          created
+          userId
+          content
+          startWordIndex
+          endWordIndex
+        }
+        quoteId
+        quote {
+          _id
+          startWordIndex
+          endWordIndex
+          created
+          quote
         }
       }
       pagination {
