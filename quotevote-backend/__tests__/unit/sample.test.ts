@@ -1,4 +1,4 @@
-import { add, multiply } from '~/utils/sample';
+import { add, multiply } from '~/data/utils/sample';
 
 describe('Sample Utils', () => {
   describe('add', () => {
