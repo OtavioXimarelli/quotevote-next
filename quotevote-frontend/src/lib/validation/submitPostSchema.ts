@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod'
-import { URL_REGEX, sanitizeUrl } from '@/lib/utils/sanitizeUrl'
+import { containsUrl, sanitizeUrl } from '@/lib/utils/sanitizeUrl'
 
 export const submitPostSchema = z.object({
   title: z
@@ -15,7 +15,7 @@ export const submitPostSchema = z.object({
     .min(1, 'Post content is required')
     .max(10000, 'Post content should be less than 10000 characters')
     .refine(
-      (value) => !URL_REGEX.test(value),
+      (value) => !containsUrl(value),
       {
         message: 'Links are not allowed in the post body. Use the Citation URL field instead.',
       }

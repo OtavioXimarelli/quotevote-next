@@ -20,9 +20,17 @@ export const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-
 export const INVALID_URL_CHARS_REGEX = /[^a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=%]/
 
 /**
- * Regex to detect URLs in text (for blocking in post body)
+ * Helper to check if text contains a URL
+ * Creates a new RegExp instance each call to avoid global flag state issues
+ * 
+ * @param text - The text to check for URLs
+ * @returns true if the text contains a URL
  */
-export const URL_REGEX = /(?:https?:\/\/|ftp:\/\/|www\.)[^\s/$.?#].[^\s]*/gi
+export const containsUrl = (text: string): boolean => {
+  // Using a fresh regex instance each time to avoid global flag state issues
+  const urlPattern = /(?:https?:\/\/|www\.)[^\s/$.?#].[^\s]*/i
+  return urlPattern.test(text)
+}
 
 /**
  * Validate and sanitize a URL for use as a citation link
@@ -49,8 +57,8 @@ export const sanitizeUrl = (url: string): string | null => {
   try {
     const parsed = new URL(trimmedUrl)
 
-    // Only allow safe protocols
-    if (!['http:', 'https:', 'ftp:'].includes(parsed.protocol)) return null
+    // Only allow http and https protocols
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null
 
     // Require valid hostname
     if (!parsed.hostname || parsed.hostname.length < 3) return null

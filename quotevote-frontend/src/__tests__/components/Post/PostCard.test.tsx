@@ -106,4 +106,45 @@ describe('PostCard Component', () => {
       expect(container.firstChild).toBeInTheDocument()
     })
   })
+
+  describe('Citation URL Rendering', () => {
+    it('renders post card with citationUrl without crashing', () => {
+      const propsWithCitation: PostCardProps = {
+        ...mockPostCardProps,
+        citationUrl: 'https://www.example.com/article',
+      }
+      const { container } = render(
+        <MockedProvider mocks={[]}>
+          <PostCard {...propsWithCitation} />
+        </MockedProvider>
+      )
+      // Component should render without crashing when citationUrl is provided
+      expect(container.firstChild).toBeInTheDocument()
+    })
+
+    it('renders post card without citationUrl without crashing', () => {
+      const { container } = render(
+        <MockedProvider mocks={[]}>
+          <PostCard {...mockPostCardProps} />
+        </MockedProvider>
+      )
+      // Component should render without crashing when citationUrl is not provided
+      expect(mockPostCardProps.citationUrl).toBeUndefined()
+      expect(container.firstChild).toBeInTheDocument()
+    })
+
+    it('handles null citationUrl gracefully', () => {
+      const propsWithNullCitation: PostCardProps = {
+        ...mockPostCardProps,
+        citationUrl: null,
+      }
+      const { container } = render(
+        <MockedProvider mocks={[]}>
+          <PostCard {...propsWithNullCitation} />
+        </MockedProvider>
+      )
+      expect(container.firstChild).toBeInTheDocument()
+    })
+  })
 })
+

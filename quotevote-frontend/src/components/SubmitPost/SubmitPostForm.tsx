@@ -257,7 +257,7 @@ export function SubmitPostForm({ options = [], user, setOpen }: SubmitPostFormPr
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Link2 className="h-4 w-4 text-muted-foreground" />
-                  <Label htmlFor="citationUrl">Citation URL</Label>
+                  <Label htmlFor="citationUrl">Citation URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -271,7 +271,7 @@ export function SubmitPostForm({ options = [], user, setOpen }: SubmitPostFormPr
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="right" className="max-w-xs">
-                        <p>One citation per post, no other URLs allowed in the body. Gives credit to the original author.</p>
+                        <p>Optional: Add a citation link to credit the original source. No other URLs are allowed in the post body.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
