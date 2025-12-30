@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import ContentList, { ContentItem } from '@/components/ContentList'
 
 // Mock Data
