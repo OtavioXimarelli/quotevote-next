@@ -995,3 +995,45 @@ export interface SidebarSearchViewProps {
   Display?: 'block' | 'flex' | 'none' | string;
 }
 
+export interface HighlightTextProps {
+  /**
+   * The text content to highlight
+   */
+  text: string;
+  /**
+   * Single search term or array of search terms to highlight
+   * @default []
+   */
+  highlightTerms?: string | string[];
+  /**
+   * Whether the search is case-sensitive
+   * @default false
+   */
+  caseSensitive?: boolean;
+  /**
+   * Whether to auto-escape special regex characters in search terms
+   * @default true
+   */
+  autoEscape?: boolean;
+  /**
+   * Custom CSS class name for highlighted spans
+   * @default 'bg-yellow-200 font-semibold'
+   */
+  highlightClassName?: string;
+  /**
+   * Additional CSS classes for the container
+   */
+  className?: string;
+  /**
+   * Custom function to find chunks (advanced usage)
+   * Matches the FindChunks interface from react-highlight-words
+   */
+  findChunks?: (options: {
+    textToHighlight: string;
+    searchWords: Array<string | RegExp>;
+    caseSensitive?: boolean;
+    autoEscape?: boolean;
+    sanitize?: (text: string) => string;
+  }) => Array<{ start: number; end: number }>;
+}
+
