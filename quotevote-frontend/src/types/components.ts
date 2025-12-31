@@ -1049,3 +1049,14 @@ export interface GuestFooterProps {
   isRequestAccess?: boolean;
 }
 
+// ============================================================================
+// LogoutPage Component Types
+// ============================================================================
+
+export interface LogoutPageProps {
+  /**
+   * Additional CSS classes
+   */
+  className?: string;
+}
+
