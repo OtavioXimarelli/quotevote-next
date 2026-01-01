@@ -1060,3 +1060,76 @@ export interface LogoutPageProps {
   className?: string;
 }
 
+// ============================================================================
+// PopoverMenu Component Types
+// ============================================================================
+
+/**
+ * Route definition for navigation menu items
+ */
+export interface AppRoute {
+  /**
+   * Route path segment
+   */
+  path: string;
+  /**
+   * Display name for the route
+   */
+  name: string;
+  /**
+   * Layout path prefix (e.g., '/' or '/logout')
+   */
+  layout: string;
+  /**
+   * Optional icon component
+   */
+  icon?: React.ComponentType<{ className?: string }>;
+  /**
+   * Whether authentication is required for this route
+   * @default false
+   */
+  requiresAuth?: boolean;
+  /**
+   * Optional RTL name for right-to-left languages
+   */
+  rtlName?: string;
+  /**
+   * Optional mini abbreviation
+   */
+  mini?: string;
+  /**
+   * Optional RTL mini abbreviation
+   */
+  rtlMini?: string;
+}
+
+/**
+ * Props for PopoverMenu component
+ */
+export interface PopoverMenuProps {
+  /**
+   * Array of application routes to display in the menu
+   */
+  appRoutes: AppRoute[];
+  /**
+   * Handler function called when the menu trigger is clicked
+   */
+  handleClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  /**
+   * Handler function called when the menu should be closed
+   */
+  handleClose: () => void;
+  /**
+   * Whether the popover menu is open
+   */
+  open: boolean;
+  /**
+   * Current page name to highlight the active menu item
+   */
+  page: string;
+  /**
+   * Additional CSS classes for the container
+   */
+  className?: string;
+}
+
