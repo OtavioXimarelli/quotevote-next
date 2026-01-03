@@ -15,11 +15,11 @@ import type * as Mongoose from './mongoose'
  * Extended Express Request with authentication and custom properties
  */
 export interface AuthenticatedRequest<
-  P = any,
-  ResBody = any,
-  ReqBody = any,
-  ReqQuery = any,
-  Locals extends Record<string, any> = Record<string, any>
+  P = Record<string, string>,
+  ResBody = unknown,
+  ReqBody = unknown,
+  ReqQuery = Record<string, string | undefined>,
+  Locals extends Record<string, unknown> = Record<string, unknown>
 > extends Request<P, ResBody, ReqBody, ReqQuery, Locals> {
   /** Currently authenticated user */
   user?: Common.User
@@ -46,7 +46,7 @@ export interface SessionData {
   isAuthenticated?: boolean
   createdAt?: Date
   expiresAt?: Date
-  [key: string]: any
+  [key: string]: string | boolean | Date | undefined
 }
 
 /**
@@ -72,23 +72,23 @@ export interface MulterFile {
  * Extended Express Response with custom helper methods
  */
 export interface ExtendedResponse<
-  ResBody = any,
-  Locals extends Record<string, any> = Record<string, any>
+  ResBody = unknown,
+  Locals extends Record<string, unknown> = Record<string, unknown>
 > extends Response<ResBody, Locals> {
   /**
    * Send a success response
    */
-  success<T = any>(data: T, message?: string, statusCode?: number): this
+  success<T = unknown>(data: T, message?: string, statusCode?: number): this
   
   /**
    * Send an error response
    */
-  error(message: string, statusCode?: number, details?: any): this
+  error(message: string, statusCode?: number, details?: unknown): this
   
   /**
    * Send a paginated response
    */
-  paginated<T = any>(
+  paginated<T = unknown>(
     data: T[],
     pagination: Common.Pagination,
     message?: string
@@ -103,10 +103,10 @@ export interface ExtendedResponse<
  * Express request handler with authentication
  */
 export type AuthRequestHandler<
-  TParams = any,
-  TResBody = any,
-  TReqBody = any,
-  TQuery = any
+  TParams = Record<string, string>,
+  TResBody = unknown,
+  TReqBody = unknown,
+  TQuery = Record<string, string | undefined>
 > = (
   req: AuthenticatedRequest<TParams, TResBody, TReqBody, TQuery>,
   res: ExtendedResponse,
@@ -135,7 +135,7 @@ export type ErrorHandler = (
 /**
  * Next function type
  */
-export type NextFunction = (err?: any) => void
+export type NextFunction = (err?: unknown) => void
 
 // ============================================================================
 // Route Parameter Types
@@ -200,7 +200,7 @@ export type FilterQuery = QueryParams
 /**
  * Standard API success response
  */
-export interface SuccessResponse<T = any> {
+export interface SuccessResponse<T = unknown> {
   success: true
   data: T
   message?: string
@@ -216,7 +216,7 @@ export interface ErrorResponse {
     message: string
     code?: string
     statusCode: number
-    details?: any
+    details?: unknown
   }
   timestamp: string
 }
@@ -224,7 +224,7 @@ export interface ErrorResponse {
 /**
  * Paginated API response
  */
-export interface PaginatedResponse<T = any> {
+export interface PaginatedResponse<T = unknown> {
   success: true
   data: T[]
   pagination: Common.Pagination
@@ -299,7 +299,7 @@ export interface SignupResponse {
 export interface ValidationError {
   field: string
   message: string
-  value?: any
+  value?: unknown
 }
 
 /**
@@ -335,6 +335,7 @@ export function isAdminUser(user: Common.User | undefined): user is Common.User 
 // ============================================================================
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: Common.User
