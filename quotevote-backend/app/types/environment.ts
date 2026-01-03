@@ -273,7 +273,7 @@ export function parseEnvironmentConfig(env: NodeJS.ProcessEnv): EnvironmentConfi
   validateEnvironment(env)
   
   return {
-    nodeEnv: (env.NODE_ENV as any) || 'development',
+    nodeEnv: (env.NODE_ENV as EnvironmentConfig['nodeEnv']) || 'development',
     port: parseInteger(env.PORT, 4000),
     
     database: {
@@ -377,7 +377,9 @@ export function parseEnvironmentConfig(env: NodeJS.ProcessEnv): EnvironmentConfi
 // ============================================================================
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace NodeJS {
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface ProcessEnv extends Partial<EnvironmentVariables> {}
   }
 }
