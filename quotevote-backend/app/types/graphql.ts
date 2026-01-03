@@ -10,7 +10,12 @@ import type * as Common from './common'
  * PubSub type from graphql-subscriptions
  * Using generic type to avoid requiring the package as a dependency
  */
-export type PubSub = any
+export interface PubSub {
+  publish(triggerName: string, payload: unknown): Promise<void>
+  subscribe(triggerName: string, onMessage: (message: unknown) => void): Promise<number>
+  unsubscribe(subId: number): void
+  asyncIterableIterator<T>(triggers: string | string[]): AsyncIterableIterator<T>
+}
 
 // ============================================================================
 // GraphQL Context
@@ -39,35 +44,58 @@ export interface GraphQLContext {
 // Data Loaders
 // ============================================================================
 
+/** DataLoader type for batch loading */
+export interface DataLoader<K, V> {
+  load(key: K): Promise<V>
+  loadMany(keys: K[]): Promise<(V | Error)[]>
+  clear(key: K): this
+  clearAll(): this
+  prime(key: K, value: V): this
+}
+
 export interface DataLoaders {
-  userLoader: any
-  postLoader: any
-  commentLoader: any
-  voteLoader: any
-  quoteLoader: any
-  messageRoomLoader: any
-  notificationLoader: any
+  userLoader: DataLoader<string, Common.User | null>
+  postLoader: DataLoader<string, Common.Post | null>
+  commentLoader: DataLoader<string, Common.Comment | null>
+  voteLoader: DataLoader<string, Common.Vote | null>
+  quoteLoader: DataLoader<string, Common.Quote | null>
+  messageRoomLoader: DataLoader<string, Common.MessageRoom | null>
+  notificationLoader: DataLoader<string, Common.Notification | null>
 }
 
 // ============================================================================
 // Resolver Types
 // ============================================================================
 
+/** GraphQL resolve info type */
+export interface GraphQLResolveInfo {
+  fieldName: string
+  fieldNodes: readonly unknown[]
+  returnType: unknown
+  parentType: unknown
+  path: { key: string | number; prev?: unknown }
+  schema: unknown
+  fragments: Record<string, unknown>
+  rootValue: unknown
+  operation: unknown
+  variableValues: Record<string, unknown>
+}
+
 /**
  * Base resolver function type
  */
-export type ResolverFn<TResult, TParent = any, TArgs = any> = (
+export type ResolverFn<TResult, TParent = unknown, TArgs = Record<string, unknown>> = (
   parent: TParent,
   args: TArgs,
   context: GraphQLContext,
-  info: any
+  info: GraphQLResolveInfo
 ) => Promise<TResult> | TResult
 
 /**
  * Resolver map for a specific type
  */
-export type TypeResolvers<TSource = any> = {
-  [field: string]: ResolverFn<any, TSource, any>
+export type TypeResolvers<TSource = unknown> = {
+  [field: string]: ResolverFn<unknown, TSource, Record<string, unknown>>
 }
 
 // ============================================================================
@@ -76,52 +104,52 @@ export type TypeResolvers<TSource = any> = {
 
 export interface QueryResolvers {
   // User queries
-  user: ResolverFn<Common.User | null, any, { username: string }>
-  users: ResolverFn<Common.User[], any, { limit?: number; offset?: number }>
-  searchUser: ResolverFn<Common.User[], any, { query: string }>
-  getUserFollowInfo: ResolverFn<Common.User[], any, { username: string; filter: string }>
-  checkDuplicateEmail: ResolverFn<boolean, any, { email: string }>
+  user: ResolverFn<Common.User | null, unknown, { username: string }>
+  users: ResolverFn<Common.User[], unknown, { limit?: number; offset?: number }>
+  searchUser: ResolverFn<Common.User[], unknown, { query: string }>
+  getUserFollowInfo: ResolverFn<Common.User[], unknown, { username: string; filter: string }>
+  checkDuplicateEmail: ResolverFn<boolean, unknown, { email: string }>
   
   // Post queries
-  post: ResolverFn<Common.Post | null, any, { postId: string }>
-  posts: ResolverFn<Common.PaginatedResult<Common.Post>, any, PostQueryArgs>
-  featuredPosts: ResolverFn<Common.PaginatedResult<Common.Post>, any, PostQueryArgs>
+  post: ResolverFn<Common.Post | null, unknown, { postId: string }>
+  posts: ResolverFn<Common.PaginatedResult<Common.Post>, unknown, PostQueryArgs>
+  featuredPosts: ResolverFn<Common.PaginatedResult<Common.Post>, unknown, PostQueryArgs>
   
   // Quote queries
-  latestQuotes: ResolverFn<Common.Quote[], any, { limit: number }>
+  latestQuotes: ResolverFn<Common.Quote[], unknown, { limit: number }>
   
   // Group queries
-  group: ResolverFn<Common.Group | null, any, { groupId: string }>
-  groups: ResolverFn<Common.Group[], any, { limit: number }>
+  group: ResolverFn<Common.Group | null, unknown, { groupId: string }>
+  groups: ResolverFn<Common.Group[], unknown, { limit: number }>
   
   // Activity queries
-  activities: ResolverFn<Common.PaginatedResult<Common.Activity>, any, ActivityQueryArgs>
+  activities: ResolverFn<Common.PaginatedResult<Common.Activity>, unknown, ActivityQueryArgs>
   
   // Notification queries
   notifications: ResolverFn<Common.Notification[]>
   
   // Message queries
-  messages: ResolverFn<Common.Message[], any, { messageRoomId: string }>
-  messageRoom: ResolverFn<Common.MessageRoom | null, any, { otherUserId: string }>
+  messages: ResolverFn<Common.Message[], unknown, { messageRoomId: string }>
+  messageRoom: ResolverFn<Common.MessageRoom | null, unknown, { otherUserId: string }>
   messageRooms: ResolverFn<Common.MessageRoom[]>
-  messageReactions: ResolverFn<Common.Reaction[], any, { messageId: string }>
+  messageReactions: ResolverFn<Common.Reaction[], unknown, { messageId: string }>
   
   // Roster (buddy) queries
   buddyList: ResolverFn<Common.Roster[]>
   roster: ResolverFn<RosterQueryResult>
   
   // Action reactions
-  actionReactions: ResolverFn<Common.Reaction[], any, { actionId: string }>
+  actionReactions: ResolverFn<Common.Reaction[], unknown, { actionId: string }>
   
   // Search queries
-  searchContent: ResolverFn<Common.Content[], any, { text: string }>
-  searchCreator: ResolverFn<Common.Creator[], any, { text: string }>
+  searchContent: ResolverFn<Common.Content[], unknown, { text: string }>
+  searchCreator: ResolverFn<Common.Creator[], unknown, { text: string }>
   
   // Admin queries
-  getBotReportedUsers: ResolverFn<Common.User[], any, { sortBy?: string; limit?: number }>
+  getBotReportedUsers: ResolverFn<Common.User[], unknown, { sortBy?: string; limit?: number }>
   
   // Token verification
-  verifyUserPasswordResetToken: ResolverFn<boolean, any, { token: string }>
+  verifyUserPasswordResetToken: ResolverFn<boolean, unknown, { token: string }>
 }
 
 // ============================================================================
@@ -130,75 +158,75 @@ export interface QueryResolvers {
 
 export interface MutationResolvers {
   // User mutations
-  followUser: ResolverFn<Common.User, any, { user_id: string; action: string }>
-  updateUserPassword: ResolverFn<boolean, any, { username: string; password: string; token: string }>
-  disableUser: ResolverFn<Common.User, any, { userId: string }>
-  enableUser: ResolverFn<Common.User, any, { userId: string }>
+  followUser: ResolverFn<Common.User, unknown, { user_id: string; action: string }>
+  updateUserPassword: ResolverFn<boolean, unknown, { username: string; password: string; token: string }>
+  disableUser: ResolverFn<Common.User, unknown, { userId: string }>
+  enableUser: ResolverFn<Common.User, unknown, { userId: string }>
   
   // Post mutations
-  addPost: ResolverFn<Common.Post, any, { post: Common.PostInput }>
-  deletePost: ResolverFn<Common.Post, any, { postId: string }>
-  approvePost: ResolverFn<Common.Post, any, { postId: string; userId: string; remove?: boolean }>
-  rejectPost: ResolverFn<Common.Post, any, { postId: string; userId: string; remove?: boolean }>
-  reportPost: ResolverFn<Common.Post, any, { postId: string; userId: string }>
-  updatePostBookmark: ResolverFn<Common.Post, any, { postId: string; userId: string }>
-  toggleVoting: ResolverFn<Common.Post, any, { postId: string }>
-  updateFeaturedSlot: ResolverFn<Common.Post, any, { postId: string; featuredSlot?: number }>
+  addPost: ResolverFn<Common.Post, unknown, { post: Common.PostInput }>
+  deletePost: ResolverFn<Common.Post, unknown, { postId: string }>
+  approvePost: ResolverFn<Common.Post, unknown, { postId: string; userId: string; remove?: boolean }>
+  rejectPost: ResolverFn<Common.Post, unknown, { postId: string; userId: string; remove?: boolean }>
+  reportPost: ResolverFn<Common.Post, unknown, { postId: string; userId: string }>
+  updatePostBookmark: ResolverFn<Common.Post, unknown, { postId: string; userId: string }>
+  toggleVoting: ResolverFn<Common.Post, unknown, { postId: string }>
+  updateFeaturedSlot: ResolverFn<Common.Post, unknown, { postId: string; featuredSlot?: number }>
   
   // Comment mutations
-  addComment: ResolverFn<Common.Comment, any, { comment: Common.CommentInput }>
-  updateComment: ResolverFn<Common.Comment, any, { commentId: string; content: string }>
-  deleteComment: ResolverFn<Common.Comment, any, { commentId: string }>
+  addComment: ResolverFn<Common.Comment, unknown, { comment: Common.CommentInput }>
+  updateComment: ResolverFn<Common.Comment, unknown, { commentId: string; content: string }>
+  deleteComment: ResolverFn<Common.Comment, unknown, { commentId: string }>
   
   // Vote mutations
-  addVote: ResolverFn<Common.Vote, any, { vote: Common.VoteInput }>
-  deleteVote: ResolverFn<Common.Vote, any, { voteId: string }>
+  addVote: ResolverFn<Common.Vote, unknown, { vote: Common.VoteInput }>
+  deleteVote: ResolverFn<Common.Vote, unknown, { voteId: string }>
   
   // Quote mutations
-  addQuote: ResolverFn<Common.Quote, any, { quote: Common.QuoteInput }>
-  deleteQuote: ResolverFn<Common.Quote, any, { quoteId: string }>
+  addQuote: ResolverFn<Common.Quote, unknown, { quote: Common.QuoteInput }>
+  deleteQuote: ResolverFn<Common.Quote, unknown, { quoteId: string }>
   
   // Message mutations
-  createMessage: ResolverFn<Common.Message, any, { message: Common.MessageInput }>
-  deleteMessage: ResolverFn<Common.Message, any, { messageId: string }>
-  createPostMessageRoom: ResolverFn<Common.MessageRoom, any, { postId: string }>
+  createMessage: ResolverFn<Common.Message, unknown, { message: Common.MessageInput }>
+  deleteMessage: ResolverFn<Common.Message, unknown, { messageId: string }>
+  createPostMessageRoom: ResolverFn<Common.MessageRoom, unknown, { postId: string }>
   
   // Reaction mutations
-  addActionReaction: ResolverFn<Common.Reaction, any, { reaction: Common.ReactionInput }>
-  updateActionReaction: ResolverFn<Common.Reaction, any, { _id: string; emoji: string }>
-  addMessageReaction: ResolverFn<Common.Reaction, any, { reaction: Common.ReactionInput }>
-  updateReaction: ResolverFn<Common.Reaction, any, { _id: string; emoji: string }>
+  addActionReaction: ResolverFn<Common.Reaction, unknown, { reaction: Common.ReactionInput }>
+  updateActionReaction: ResolverFn<Common.Reaction, unknown, { _id: string; emoji: string }>
+  addMessageReaction: ResolverFn<Common.Reaction, unknown, { reaction: Common.ReactionInput }>
+  updateReaction: ResolverFn<Common.Reaction, unknown, { _id: string; emoji: string }>
   
   // Group mutations
-  createGroup: ResolverFn<Common.Group, any, { group: Common.GroupInput }>
+  createGroup: ResolverFn<Common.Group, unknown, { group: Common.GroupInput }>
   
   // Roster mutations
-  addBuddy: ResolverFn<Common.Roster, any, { roster: Common.RosterInput }>
-  acceptBuddy: ResolverFn<Common.Roster, any, { rosterId: string }>
-  declineBuddy: ResolverFn<Common.Roster, any, { rosterId: string }>
-  blockBuddy: ResolverFn<Common.Roster, any, { buddyId: string }>
-  unblockBuddy: ResolverFn<Common.Roster, any, { buddyId: string }>
-  removeBuddy: ResolverFn<MutationResult, any, { buddyId: string }>
+  addBuddy: ResolverFn<Common.Roster, unknown, { roster: Common.RosterInput }>
+  acceptBuddy: ResolverFn<Common.Roster, unknown, { rosterId: string }>
+  declineBuddy: ResolverFn<Common.Roster, unknown, { rosterId: string }>
+  blockBuddy: ResolverFn<Common.Roster, unknown, { buddyId: string }>
+  unblockBuddy: ResolverFn<Common.Roster, unknown, { buddyId: string }>
+  removeBuddy: ResolverFn<MutationResult, unknown, { buddyId: string }>
   
   // Presence mutations
   heartbeat: ResolverFn<HeartbeatResult>
-  updatePresence: ResolverFn<Common.Presence, any, { presence: Common.PresenceInput }>
+  updatePresence: ResolverFn<Common.Presence, unknown, { presence: Common.PresenceInput }>
   
   // Typing mutations
-  updateTyping: ResolverFn<TypingResult, any, { typing: Common.TypingInput }>
+  updateTyping: ResolverFn<TypingResult, unknown, { typing: Common.TypingInput }>
   
   // Notification mutations
-  removeNotification: ResolverFn<Common.Notification, any, { notificationId: string }>
+  removeNotification: ResolverFn<Common.Notification, unknown, { notificationId: string }>
   
   // Invite & Report mutations
-  sendUserInvite: ResolverFn<MutationResult, any, { email: string }>
-  requestUserAccess: ResolverFn<Common.UserInvite, any, { requestUserAccessInput: Common.RequestUserAccessInput }>
-  reportUser: ResolverFn<MutationResult, any, { reportUserInput: Common.ReportUserInput }>
-  reportBot: ResolverFn<boolean, any, { userId: string; reporterId: string }>
+  sendUserInvite: ResolverFn<MutationResult, unknown, { email: string }>
+  requestUserAccess: ResolverFn<Common.UserInvite, unknown, { requestUserAccessInput: Common.RequestUserAccessInput }>
+  reportUser: ResolverFn<MutationResult, unknown, { reportUserInput: Common.ReportUserInput }>
+  reportBot: ResolverFn<boolean, unknown, { userId: string; reporterId: string }>
   
   // Email mutations
-  sendPasswordResetEmail: ResolverFn<boolean, any, { email: string }>
-  sendInvestorMail: ResolverFn<boolean, any, { email: string }>
+  sendPasswordResetEmail: ResolverFn<boolean, unknown, { email: string }>
+  sendInvestorMail: ResolverFn<boolean, unknown, { email: string }>
 }
 
 // ============================================================================
@@ -216,8 +244,8 @@ export interface SubscriptionResolvers {
 /**
  * Generic subscription resolver type
  */
-export type SubscriptionResolver<TPayload, TArgs = any> = {
-  subscribe: ResolverFn<AsyncIterator<TPayload>, any, TArgs>
+export type SubscriptionResolver<TPayload, TArgs = Record<string, unknown>> = {
+  subscribe: ResolverFn<AsyncIterator<TPayload>, unknown, TArgs>
   resolve?: (payload: TPayload) => TPayload
 }
 
