@@ -4,7 +4,7 @@
  */
 
 import type { Document, Model, Types } from 'mongoose'
-import type * as Common from './common'
+import type * as Common from '~/types/common'
 
 // ============================================================================
 // Base Document Interface
@@ -13,11 +13,12 @@ import type * as Common from './common'
 /**
  * Base interface for all Mongoose documents
  * Extends native Mongoose Document with common fields
+ * Note: createdAt and updatedAt are required as schemas use { timestamps: true }
  */
 export interface BaseDocument extends Document {
   _id: Types.ObjectId
-  createdAt?: Date
-  updatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
 }
 
 // ============================================================================
