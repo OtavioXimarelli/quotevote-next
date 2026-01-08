@@ -195,12 +195,12 @@ describe('SettingsContent', () => {
       refresh: jest.fn(),
       replace: jest.fn(),
       prefetch: jest.fn(),
-    } as any)
+    } as ReturnType<typeof useRouter>)
 
     mockUseMutation.mockReturnValue([
       mockUpdateUser,
       { loading: false, error: null, data: null },
-    ] as any)
+    ] as  unknown as ReturnType<typeof useMutation>)
 
     mockUseAppStore.mockImplementation((selector) => {
       const state = {
@@ -322,7 +322,7 @@ describe('SettingsContent', () => {
         return selector(state)
       })
 
-      ;(useAppStore as any).getState = jest.fn().mockReturnValue({
+      ;(useAppStore as unknown as { getState: () => { logout: jest.Mock } }).getState = jest.fn().mockReturnValue({
         logout: mockLogout,
       })
 
@@ -374,7 +374,7 @@ describe('SettingsContent', () => {
       mockUseMutation.mockReturnValue([
         mockUpdateUser,
         { loading: true, error: null, data: null },
-      ] as any)
+      ] as unknown as ReturnType<typeof useMutation>)
 
       renderComponent()
 
@@ -421,7 +421,7 @@ describe('SettingsContent', () => {
       mockUseMutation.mockReturnValue([
         mockUpdateUser,
         { loading: true, error: null, data: null },
-      ] as any)
+      ] as unknown as ReturnType<typeof useMutation>)
 
       renderComponent()
 
@@ -433,7 +433,7 @@ describe('SettingsContent', () => {
       mockUseMutation.mockReturnValue([
         mockUpdateUser,
         { loading: true, error: null, data: null },
-      ] as any)
+      ] as unknown as ReturnType<typeof useMutation>)
 
       renderComponent()
 

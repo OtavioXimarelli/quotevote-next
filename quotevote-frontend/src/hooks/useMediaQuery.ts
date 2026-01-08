@@ -6,13 +6,16 @@
 import { useState, useEffect } from 'react'
 
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false)
+  // Initialize state with lazy initialization to avoid SSR issues
+  const [matches, setMatches] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia(query).matches
+    }
+    return false
+  })
 
   useEffect(() => {
     const media = window.matchMedia(query)
-    
-    // Set initial value
-    setMatches(media.matches)
 
     // Define callback
     const listener = (event: MediaQueryListEvent) => {
