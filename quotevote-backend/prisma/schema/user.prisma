@@ -53,8 +53,6 @@ model User {
     memberOfGroups String[] @db.ObjectId
     voteLog VoteLog[]
 
-    @@index([email])
-    @@index([username])
     @@index([accountStatus])
     @@map("users")
 
