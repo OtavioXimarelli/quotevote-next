@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type SubmitHandler, type Control } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { useMutation } from '@apollo/client/react'
+import { useMutation } from '@apollo/client/react' 
 import { Camera, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -26,7 +26,16 @@ import { UPDATE_USER } from '@/graphql/mutations'
 import { replaceGqlError } from '@/lib/utils/replaceGqlError'
 import Avatar from '@/components/Avatar'
 import { useAppStore } from '@/store/useAppStore'
-import type { SettingsFormValues, SettingsContentProps } from '@/types/settings'
+import type { 
+  SettingsFormValues, 
+  SettingsContentProps, 
+  SettingsUserData, 
+  UserAvatar 
+} from '@/types/settings'
+
+interface UpdateUserResponse {
+  updateUser: SettingsUserData
+}
 
 const settingsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -38,15 +47,15 @@ const settingsSchema = z.object({
   password: z
     .string()
     .optional()
+    .or(z.literal('')) 
     .refine(
       (val) => {
         if (!val || val.length === 0) return true
-        if (val.length < 3) return false
-        if (val.length > 50) return false
+        if (val.length < 8) return false 
         return /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/.test(val)
       },
       {
-        message: 'Password should contain a number, an uppercase, and lowercase letter',
+        message: 'Password should contain at least 8 chars, a number, an uppercase, and lowercase letter',
       }
     ),
 })
@@ -55,17 +64,17 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
   const router = useRouter()
   const [showSuccess, setShowSuccess] = useState(false)
 
-  const userData = useAppStore((state) => state.user.data)
+  const userData = useAppStore((state) => state.user.data) as SettingsUserData | undefined
   const setUserData = useAppStore((state) => state.setUserData)
 
+  const avatar = userData?.avatar as UserAvatar | string | undefined
   const username = userData?.username ?? ''
   const email = userData?.email ?? ''
   const name = userData?.name ?? ''
-  const avatar = userData?.avatar
   const userId = userData?.id ?? userData?._id ?? ''
   const admin = userData?.admin ?? false
 
-  const [updateUser, { loading, error }] = useMutation(UPDATE_USER)
+  const [updateUser, { loading, error }] = useMutation<UpdateUserResponse>(UPDATE_USER)
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -77,26 +86,9 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
     },
   })
 
-  const handleChangeAvatar = () => {
-    if (setOpen) setOpen(false)
-    router.push(`/Profile/${username}/avatar`)
-  }
-
-  const handleLogout = () => {
-    if (setOpen) setOpen(false)
-    localStorage.removeItem('token')
-    useAppStore.getState().logout()
-    router.push('/auth/login')
-  }
-
-  const handleInvite = () => {
-    router.push('/ControlPanel')
-    if (setOpen) setOpen(false)
-  }
-
-  const onSubmit = async (values: SettingsFormValues) => {
-    const { password, ...otherValues } = values
-    const updateVariables = !password || password.length === 0 ? otherValues : values
+  const onSubmit: SubmitHandler<SettingsFormValues> = async (values) => {
+    const { password, ...otherValues } = values;
+    const updateVariables = !password || password.length === 0 ? otherValues : values;
 
     try {
       const result = await updateUser({
@@ -106,28 +98,33 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
             ...updateVariables,
           },
         },
-      })
+      });
 
       if (result.data?.updateUser) {
+        const updatedAvatar = typeof avatar === 'string' 
+          ? avatar 
+          : (avatar as UserAvatar)?.url || (avatar as UserAvatar)?.src || '';
+
         setUserData({
           ...userData,
           ...otherValues,
-        })
+          avatar: updatedAvatar,
+        });
         
-        setShowSuccess(true)
-        setTimeout(() => setShowSuccess(false), 3000)
-        form.reset(values)
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+        form.reset(values);
       }
     } catch (err) {
-      // Error handled by Apollo and displayed via error state
+      // Error handled by Apollo
     }
-  }
-
-  const hasChanges = form.formState.isDirty
+  };
 
   const avatarUrl = typeof avatar === 'string' 
     ? avatar 
-    : avatar?.url || avatar?.src || ''
+    : (avatar as UserAvatar)?.url || (avatar as UserAvatar)?.src || ''
+
+  const watchedName = (form.watch('name') as string) || name || '';
 
   return (
     <div className="flex h-[90vh] max-w-[350px] flex-col gap-4 overflow-auto p-4 md:min-w-[350px] sm:max-w-full sm:p-6">
@@ -139,15 +136,18 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={handleChangeAvatar}
+                onClick={() => {
+                   if (setOpen) setOpen(false)
+                   router.push(`/Profile/${username}/avatar`)
+                }}
                 className="group relative flex-shrink-0"
                 aria-label="Change avatar"
               >
                 <Avatar 
                   src={avatarUrl}
-                  alt={name || 'User avatar'}
+                  alt={watchedName || 'User avatar'}
                   size={96}
-                  fallback={name?.charAt(0)?.toUpperCase() || 'U'}
+                  fallback={watchedName.charAt(0).toUpperCase() || 'U'}
                   className="h-20 w-20 md:h-24 md:w-24"
                 />
                 <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
@@ -158,7 +158,7 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
               <Card className="flex-1">
                 <CardContent className="p-4">
                   <FormField
-                    control={form.control}
+                    control={form.control as Control<SettingsFormValues>}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
@@ -177,7 +177,7 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
             <Card>
               <CardContent className="p-4">
                 <FormField
-                  control={form.control}
+                  control={form.control as Control<SettingsFormValues>}
                   name="username"
                   render={({ field }) => (
                     <FormItem>
@@ -195,7 +195,7 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
             <Card>
               <CardContent className="p-4">
                 <FormField
-                  control={form.control}
+                  control={form.control as Control<SettingsFormValues>}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
@@ -213,7 +213,7 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
             <Card>
               <CardContent className="p-4">
                 <FormField
-                  control={form.control}
+                  control={form.control as Control<SettingsFormValues>}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
@@ -258,7 +258,12 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={handleLogout}
+              onClick={() => {
+                if (setOpen) setOpen(false)
+                localStorage.removeItem('token')
+                useAppStore.getState().logout()
+                router.push('/auth/login')
+              }}
               disabled={loading}
             >
               Sign Out
@@ -268,14 +273,17 @@ export default function SettingsContent({ setOpen }: SettingsContentProps) {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={handleInvite}
+                onClick={() => {
+                    router.push('/ControlPanel')
+                    if (setOpen) setOpen(false)
+                }}
                 disabled={loading}
               >
                 Manage Invites
               </Button>
             )}
 
-            <Button type="submit" disabled={!hasChanges || loading}>
+            <Button type="submit" disabled={!form.formState.isDirty || loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

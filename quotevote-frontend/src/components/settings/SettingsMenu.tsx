@@ -29,10 +29,6 @@ export default function SettingsMenu({ fontSize = 'medium' }: SettingsMenuProps)
     setOpen(!open)
   }
 
-  const handleClose = () => {
-    setOpen(false)
-  }
-
   const iconSizeMap = {
     small: 'h-4 w-4',
     medium: 'h-5 w-5',
