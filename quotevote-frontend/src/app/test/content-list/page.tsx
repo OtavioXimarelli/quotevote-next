@@ -1,7 +1,8 @@
 "use client"
 
 
-import ContentList, { ContentItem } from '@/components/ContentList'
+import ContentList from '@/components/ContentList'
+import { ContentItem } from '@/types/contentList'
 
 // Mock Data
 const MOCK_DATA: ContentItem[] = Array.from({ length: 15 }).map((_, i) => ({

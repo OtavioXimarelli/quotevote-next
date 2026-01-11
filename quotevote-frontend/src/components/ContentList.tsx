@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   MessageSquare,
@@ -15,6 +15,8 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
+
+import { ContentItem, ContentListProps } from '@/types/contentList'
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,22 +33,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
-export interface ContentItem {
-  id: string
-  title: string
-  content: string // maps to 'text' from old component
-  upvotes: number
-  downvotes: number
-  url: string
-  createdAt?: string
-  author?: string
-}
 
-export interface ContentListProps {
-  data?: ContentItem[]
-  isLoading?: boolean
-  error?: string | null
-}
 
 const ITEMS_PER_PAGE = 5
 
@@ -66,7 +53,7 @@ function ContentCard({ item }: ContentCardProps) {
   }
 
   return (
-    <Card className="transition-all hover:shadow-md">
+    <Card className="transition-all hover:shadow-md" role="article">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start gap-4">
           <div className="space-y-1">
@@ -209,10 +196,7 @@ export default function ContentList({
     return filteredAndSortedData.slice(start, start + ITEMS_PER_PAGE)
   }, [filteredAndSortedData, currentPage])
 
-  // Reset page on filter change
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [filterText, sortBy])
+
 
   if (isLoading) {
     return (
@@ -240,14 +224,20 @@ export default function ContentList({
           <Input
             placeholder="Search content..."
             value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
+            onChange={(e) => {
+              setFilterText(e.target.value)
+              setCurrentPage(1)
+            }}
             className="pl-9"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by:</span>
-          <Select value={sortBy} onValueChange={setSortBy}>
+          <Select value={sortBy} onValueChange={(val) => {
+            setSortBy(val)
+            setCurrentPage(1)
+          }}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -294,6 +284,7 @@ export default function ContentList({
             size="icon"
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
+            aria-label="Previous page"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -305,6 +296,7 @@ export default function ContentList({
             size="icon"
             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
+            aria-label="Next page"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
