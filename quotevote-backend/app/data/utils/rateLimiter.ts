@@ -10,49 +10,38 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
+// Exported for testing purposes
 export const rateLimitMap = new Map<string, RateLimitEntry>();
 
 /**
  * Check if a user has exceeded the rate limit
- * @param {RateLimitRequest} req - The request object (from Express or GraphQL)
+ * @param {RateLimitRequest | string} reqOrUserId - The request object or user ID
  * @param {string} action - The action being rate limited (e.g., 'sendMessage')
  * @param {number} limit - Maximum number of actions allowed
  * @param {number} windowMs - Time window in milliseconds
  * @returns {boolean} - True if within limit, throws error if exceeded
  */
 export const checkRateLimit = (
-  req: RateLimitRequest,
+  reqOrUserId: RateLimitRequest | string,
   action: string,
   limit = 10,
   windowMs = 60000
 ): boolean => {
-  const userId = req.user?._id;
+  const userId =
+    typeof reqOrUserId === 'string'
+      ? reqOrUserId
+      : reqOrUserId.user?._id?.toString();
 
   if (!userId) {
     return true;
   }
 
   const key = `${userId}:${action}`;
+  const now = Date.now();
 
-    const now = Date.now();
+  const userLimit = rateLimitMap.get(key);
 
-  
-
-    if (!rateLimitMap.has(key)) {
-
-      rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
-
-      return true;
-
-    }
-
-  
-
-    const userLimit = rateLimitMap.get(key)!;
-
-  
-
-    if (now >= userLimit.resetAt) {
+  if (!userLimit || now >= userLimit.resetAt) {
     rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }
@@ -70,9 +59,17 @@ export const checkRateLimit = (
 
 /**
  * Reset rate limit for a user/action
+ * @param {RateLimitRequest | string} reqOrUserId - The request object or user ID
+ * @param {string} action - The action being rate limited
  */
-export const resetRateLimit = (req: RateLimitRequest, action: string): void => {
-  const userId = req.user?._id;
+export const resetRateLimit = (
+  reqOrUserId: RateLimitRequest | string,
+  action: string
+): void => {
+  const userId =
+    typeof reqOrUserId === 'string'
+      ? reqOrUserId
+      : reqOrUserId.user?._id?.toString();
   if (userId) {
     const key = `${userId}:${action}`;
     rateLimitMap.delete(key);
@@ -84,7 +81,7 @@ if (process.env.NODE_ENV !== 'test') {
   setInterval(() => {
     const now = Date.now();
     for (const [key, value] of rateLimitMap.entries()) {
-      if (now > value.resetAt) {
+      if (now >= value.resetAt) {
         rateLimitMap.delete(key);
       }
     }
