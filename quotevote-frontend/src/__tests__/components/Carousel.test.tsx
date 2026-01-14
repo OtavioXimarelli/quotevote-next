@@ -279,6 +279,216 @@ describe('Carousel Component', () => {
       expect(dot1).toHaveAttribute('aria-current', 'true')
     })
   })
+
+  describe('Edge Cases', () => {
+    it('handles single slide correctly', () => {
+      const singleSlide = [<div key="1" data-testid="single-slide">Single Slide</div>]
+      render(<Carousel>{singleSlide}</Carousel>)
+
+      expect(screen.getByTestId('single-slide')).toBeInTheDocument()
+      const nextButton = screen.getByLabelText('Next slide')
+      const backButton = screen.getByLabelText('Previous slide')
+      
+      // Both buttons should be disabled for single slide
+      expect(nextButton).toBeDisabled()
+      expect(backButton).toBeDisabled()
+    })
+
+    it('handles empty children array gracefully', () => {
+      const { container } = render(<Carousel>{[]}</Carousel>)
+      expect(container).toBeInTheDocument()
+    })
+
+    it('handles non-array children', () => {
+      const singleChild = <div data-testid="single-child">Single Child</div>
+      render(<Carousel>{[singleChild]}</Carousel>)
+      
+      expect(screen.getByTestId('single-child')).toBeInTheDocument()
+    })
+
+    it('wraps around when reaching last slide with autoplay', async () => {
+      render(<Carousel autoplay autoplayInterval={1000}>{sampleSlides}</Carousel>)
+
+      // Fast-forward to last slide
+      act(() => {
+        jest.advanceTimersByTime(2000)
+      })
+
+      await waitFor(() => {
+        const slide3 = screen.getByTestId('slide-3')
+        expect(slide3).not.toHaveAttribute('aria-hidden')
+      })
+
+      // Fast-forward again - should wrap to first slide
+      act(() => {
+        jest.advanceTimersByTime(1000)
+      })
+
+      await waitFor(() => {
+        const slide1 = screen.getByTestId('slide-1')
+        expect(slide1).not.toHaveAttribute('aria-hidden')
+      })
+    })
+
+    it('handles RTL direction correctly', async () => {
+      const user = userEvent.setup({ delay: null })
+      const { container } = render(
+        <Carousel rtl index={1}>{sampleSlides}</Carousel>
+      )
+
+      const carousel = container.querySelector('[role="region"]') as HTMLElement
+      if (carousel) {
+        carousel.focus()
+        // In RTL, left arrow should go next
+        await user.keyboard('{ArrowLeft}')
+
+        await waitFor(() => {
+          const slide3 = screen.getByTestId('slide-3')
+          expect(slide3).not.toHaveAttribute('aria-hidden')
+        })
+      }
+    })
+  })
+
+  describe('Swipe Gestures', () => {
+    it('handles left swipe to go next', async () => {
+      const { container } = render(
+        <Carousel enableSwipe>{sampleSlides}</Carousel>
+      )
+
+      const carousel = container.querySelector('[role="region"]') as HTMLElement
+      if (carousel) {
+        // Simulate touch start
+        fireEvent.touchStart(carousel, {
+          targetTouches: [{ clientX: 100 }],
+        })
+
+        // Simulate touch move (swipe left)
+        fireEvent.touchMove(carousel, {
+          targetTouches: [{ clientX: 30 }], // 70px left swipe
+        })
+
+        // Simulate touch end
+        fireEvent.touchEnd(carousel)
+
+        await waitFor(() => {
+          const slide2 = screen.getByTestId('slide-2')
+          expect(slide2).not.toHaveAttribute('aria-hidden')
+        })
+      }
+    })
+
+    it('handles right swipe to go back', async () => {
+      const { container } = render(
+        <Carousel enableSwipe index={1}>{sampleSlides}</Carousel>
+      )
+
+      const carousel = container.querySelector('[role="region"]') as HTMLElement
+      if (carousel) {
+        // Simulate touch start
+        fireEvent.touchStart(carousel, {
+          targetTouches: [{ clientX: 100 }],
+        })
+
+        // Simulate touch move (swipe right)
+        fireEvent.touchMove(carousel, {
+          targetTouches: [{ clientX: 160 }], // 60px right swipe
+        })
+
+        // Simulate touch end
+        fireEvent.touchEnd(carousel)
+
+        await waitFor(() => {
+          const slide1 = screen.getByTestId('slide-1')
+          expect(slide1).not.toHaveAttribute('aria-hidden')
+        })
+      }
+    })
+
+    it('ignores swipe when enableSwipe is false', async () => {
+      const { container } = render(
+        <Carousel enableSwipe={false}>{sampleSlides}</Carousel>
+      )
+
+      const carousel = container.querySelector('[role="region"]') as HTMLElement
+      if (carousel) {
+        fireEvent.touchStart(carousel, {
+          targetTouches: [{ clientX: 100 }],
+        })
+
+        fireEvent.touchMove(carousel, {
+          targetTouches: [{ clientX: 30 }],
+        })
+
+        fireEvent.touchEnd(carousel)
+
+        // Should not navigate
+        const slide1 = screen.getByTestId('slide-1')
+        expect(slide1).not.toHaveAttribute('aria-hidden')
+      }
+    })
+
+    it('ignores small swipe gestures below threshold', async () => {
+      const { container } = render(
+        <Carousel enableSwipe>{sampleSlides}</Carousel>
+      )
+
+      const carousel = container.querySelector('[role="region"]') as HTMLElement
+      if (carousel) {
+        fireEvent.touchStart(carousel, {
+          targetTouches: [{ clientX: 100 }],
+        })
+
+        // Small swipe (less than 50px threshold)
+        fireEvent.touchMove(carousel, {
+          targetTouches: [{ clientX: 60 }], // Only 40px
+        })
+
+        fireEvent.touchEnd(carousel)
+
+        // Should not navigate
+        const slide1 = screen.getByTestId('slide-1')
+        expect(slide1).not.toHaveAttribute('aria-hidden')
+      }
+    })
+  })
+
+  describe('Responsiveness', () => {
+    it('hides navigation buttons on mobile when navButtonsAlwaysVisible is false', () => {
+      // Mock small screen
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 640,
+      })
+
+      render(
+        <Carousel navButtonsAlwaysVisible={false}>{sampleSlides}</Carousel>
+      )
+
+      // Navigation buttons should have 'hidden' class on mobile
+      const prevButton = screen.getByLabelText('Previous slide')
+      const nextButton = screen.getByLabelText('Next slide')
+      
+      // Buttons are hidden via 'hidden sm:flex' classes on mobile
+      expect(prevButton).toHaveClass('hidden')
+      expect(nextButton).toHaveClass('hidden')
+    })
+
+    it('shows navigation buttons on desktop', () => {
+      // Mock large screen
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1024,
+      })
+
+      render(<Carousel navButtonsAlwaysVisible>{sampleSlides}</Carousel>)
+
+      expect(screen.getByLabelText('Previous slide')).toBeInTheDocument()
+      expect(screen.getByLabelText('Next slide')).toBeInTheDocument()
+    })
+  })
 })
 
 describe('RequestInviteCarouselButton', () => {
