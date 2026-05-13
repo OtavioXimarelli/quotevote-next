@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
+const wsUrl = serverUrl.replace(/^http/, "ws");
+
 const nextConfig: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
@@ -84,7 +87,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' http://localhost:4000 ws://localhost:4000 https://fonts.googleapis.com https://fonts.gstatic.com",
+              `connect-src 'self' ${serverUrl} ${wsUrl} https://fonts.googleapis.com https://fonts.gstatic.com`,
               "frame-ancestors 'none'",
             ].join("; "),
           },
