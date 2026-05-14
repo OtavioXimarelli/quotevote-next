@@ -161,8 +161,8 @@ export default function LoginPageContent() {
             marginTop: '30px',
           }}
         >
-          {/* Card body */}
-          <div style={{ padding: '0.9375rem 20px' }}>
+          {/* Card body — font-size 0.875rem matches MUI Card base */}
+          <div style={{ padding: '0.9375rem 20px', fontSize: '0.875rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
 
               {/* Title */}
@@ -200,7 +200,7 @@ export default function LoginPageContent() {
                       id="email"
                       type="text"
                       placeholder="Email/Username"
-                      className="pl-9"
+                      className="pl-9 md:text-base"
                       style={{ borderColor: errors.email ? '#F55145' : undefined }}
                       {...register('email')}
                     />
@@ -231,7 +231,7 @@ export default function LoginPageContent() {
                       id="password"
                       type="password"
                       placeholder="Password"
-                      className="pl-9"
+                      className="pl-9 md:text-base"
                       style={{ borderColor: errors.password ? '#F55145' : undefined }}
                       {...register('password')}
                     />
@@ -296,10 +296,10 @@ export default function LoginPageContent() {
                     border: 'none',
                     borderRadius: '4px',
                     padding: '10px 22px',
-                    fontSize: '0.9375rem',
-                    fontWeight: 500,
-                    lineHeight: 1.75,
-                    letterSpacing: '0.02857em',
+                    fontSize: '1rem',
+                    fontWeight: 400,
+                    lineHeight: 1.5,
+                    letterSpacing: '0.00938em',
                     textTransform: 'none' as const,
                     boxShadow: isDisabled
                       ? 'none'
