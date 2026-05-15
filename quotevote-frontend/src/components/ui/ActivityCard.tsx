@@ -153,7 +153,6 @@ function ActivityActions({
 
 export const ActivityCard = memo(function ActivityCard({
   avatar = '',
-  cardColor,
   name: _name = 'Username',
   username,
   date,
@@ -197,7 +196,6 @@ export const ActivityCard = memo(function ActivityCard({
         'sm:max-w-full sm:min-w-full sm:w-full'
       )}
       style={{
-        backgroundColor: cardColor || '#FFF',
         width: typeof width === 'number' ? `${width}px` : '100%',
       }}
       onClick={onCardClick}

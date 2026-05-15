@@ -26,13 +26,13 @@ describe('ActivityCard', () => {
     expect(screen.getByText(/Test activity content/i)).toBeInTheDocument()
   })
 
-  it('renders with custom card color', () => {
+  it('renders without custom background color override', () => {
     const { container } = render(
-      <ActivityCard {...defaultProps} cardColor="#FF0000" />
+      <ActivityCard {...defaultProps} />
     )
 
     const card = container.querySelector('[data-slot="card"]')
-    expect(card).toHaveStyle({ backgroundColor: '#FF0000' })
+    expect(card).not.toHaveStyle({ backgroundColor: 'rgb(255, 0, 0)' })
   })
 
   it('calls onCardClick when card is clicked', async () => {

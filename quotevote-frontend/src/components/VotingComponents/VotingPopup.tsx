@@ -143,8 +143,6 @@ export default function VotingPopup({
         style={{
           backgroundImage: 'linear-gradient(to top, #1bb5d8, #4066ec)',
           width: checkWindowWidth ? 285 : 240,
-          top: expand.open ? 181 : 170,
-          left: 20,
         }}
       >
         <div className="grid grid-cols-4" role="group" aria-label="Voting options">
@@ -316,7 +314,7 @@ export default function VotingPopup({
             ? 'opacity-100 scale-100'
             : 'opacity-0 scale-95 pointer-events-none',
           checkWindowWidth ? 'w-[310px]' : 'w-[270px]',
-          'top-[205px]',
+          'top-full',
         )}
         style={{
           visibility: expand.open ? 'visible' : 'hidden',

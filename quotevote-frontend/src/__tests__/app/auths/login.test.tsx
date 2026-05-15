@@ -25,13 +25,14 @@ describe('LoginPageContent', () => {
 
   it('renders username/email and password fields', () => {
     render(<LoginPageContent />)
-    expect(screen.getByLabelText(/username or email/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/email\/username/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument()
   })
 
   it('shows validation errors on empty submit', async () => {
-    render(<LoginPageContent />)
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    const { container } = render(<LoginPageContent />)
+    const form = container.querySelector('form')!
+    fireEvent.submit(form)
     await waitFor(() => {
       expect(screen.getByText(/username or email is required/i)).toBeInTheDocument()
     })
@@ -50,14 +51,14 @@ describe('LoginPageContent', () => {
       },
     })
 
-    render(<LoginPageContent />)
-    fireEvent.change(screen.getByLabelText(/username or email/i), {
+    const { container } = render(<LoginPageContent />)
+    fireEvent.change(screen.getByPlaceholderText(/email\/username/i), {
       target: { value: 'test@example.com' },
     })
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/password/i), {
       target: { value: 'password123' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.submit(container.querySelector('form')!)
     await waitFor(() => {
       expect(mockLoginUser).toHaveBeenCalledWith('test@example.com', 'password123')
       expect(mockPush).toHaveBeenCalledWith('/dashboard/explore')
@@ -71,14 +72,14 @@ describe('LoginPageContent', () => {
       error: 'Invalid username or password.',
     })
 
-    render(<LoginPageContent />)
-    fireEvent.change(screen.getByLabelText(/username or email/i), {
+    const { container } = render(<LoginPageContent />)
+    fireEvent.change(screen.getByPlaceholderText(/email\/username/i), {
       target: { value: 'bad@example.com' },
     })
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/password/i), {
       target: { value: 'wrongpass' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.submit(container.querySelector('form')!)
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Invalid username or password.')
     })

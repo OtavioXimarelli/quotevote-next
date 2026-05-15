@@ -11,16 +11,15 @@ jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 describe('ForgotPasswordPageContent', () => {
   it('renders email form initially', () => {
     render(<ForgotPasswordPageContent />)
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /send reset link/i })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^send$/i })).toBeInTheDocument()
   })
 
   it('shows validation error for invalid email', async () => {
-    render(<ForgotPasswordPageContent />)
-    const emailInput = screen.getByLabelText(/email/i)
+    const { container } = render(<ForgotPasswordPageContent />)
+    const emailInput = screen.getByPlaceholderText(/email/i)
     fireEvent.change(emailInput, { target: { value: 'notanemail' } })
-    // Submit form directly
-    fireEvent.submit(emailInput.closest('form')!)
+    fireEvent.submit(container.querySelector('form')!)
     await waitFor(() => {
       expect(screen.getByText(/valid email/i)).toBeInTheDocument()
     })
@@ -37,17 +36,17 @@ describe('ForgotPasswordPageContent', () => {
       },
     ]
     render(<ForgotPasswordPageContent />, { mocks })
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(screen.getByPlaceholderText(/email/i), {
       target: { value: 'test@example.com' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /send reset link/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^send$/i }))
     await waitFor(() => {
-      expect(screen.getByText(/check your inbox/i)).toBeInTheDocument()
+      expect(screen.getByText(/email sent/i)).toBeInTheDocument()
     })
   })
 
-  it('renders back to sign in link', () => {
+  it('renders back to login link', () => {
     render(<ForgotPasswordPageContent />)
-    expect(screen.getByText(/back to sign in/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^login$/i })).toBeInTheDocument()
   })
 })

@@ -142,7 +142,7 @@ export default function VotingBoard({
   }
 
   return (
-    <div className="h-full flex flex-col" style={style}>
+    <div className="relative h-full flex flex-col" style={style}>
       <div data-selectable className="flex-1 overflow-auto">
         <p
           className="voting_board-content m-0 p-0 h-full"

@@ -61,13 +61,17 @@ export default function SelectionPopover({
 
     const targetBox = targetElement.getBoundingClientRect()
 
+    const popupH = popoverBoxRect.height || 48
+    const popupW = popoverBoxRect.width || 285
+
     if (window.innerWidth > 960) {
+      // Desktop: popup above the selection, horizontally centred over it
       setPopoverBox({
-        top: selectionBox.top - 80 - targetBox.top - topOffset,
+        top: selectionBox.top - popupH - 8 - targetBox.top,
         left:
+          selectionBox.left - targetBox.left +
           selectionBox.width / 2 -
-          popoverBoxRect.width / 2 +
-          (selectionBox.left - targetBox.left),
+          popupW / 2,
         right: 0,
       })
     } else if (
@@ -75,14 +79,16 @@ export default function SelectionPopover({
       window.innerWidth <= 960 &&
       selectionBox.x > halfWindowWidth
     ) {
+      // Tablet, right-side selection: popup below, right-aligned
       setPopoverBox({
-        top: selectionBox.top - 80 - targetBox.top - topOffset,
-        right: window.innerWidth - selectionBox.x + 285,
+        top: selectionBox.bottom - targetBox.top + 8,
+        right: window.innerWidth - selectionBox.x + popupW,
         left: 0,
       })
     } else {
+      // Mobile: popup below the selection, left-aligned
       setPopoverBox({
-        top: selectionBox.top - 80 - targetBox.top - topOffset,
+        top: selectionBox.bottom - targetBox.top + 8,
         left: 0,
         right: 0,
       })

@@ -7,7 +7,6 @@ import moment from 'moment'
 import { useMutation, useQuery } from '@apollo/client/react'
 import type { Reference } from '@apollo/client'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -39,7 +38,6 @@ import {
   APPROVE_POST,
   REJECT_POST,
   DELETE_POST,
-  TOGGLE_VOTING,
 } from '@/graphql/mutations'
 import {
   GET_POST,
@@ -83,13 +81,6 @@ export default function Post({
   useQuery<{ users?: Array<{ _id: string; username: string }> }>(GET_USERS, {
     skip: !admin,
     errorPolicy: 'all',
-  })
-
-  const [toggleVoting] = useMutation(TOGGLE_VOTING, {
-    refetchQueries: [
-      { query: GET_POST, variables: { postId: _id } },
-      { query: GET_TOP_POSTS, variables: { limit: 5, offset: 0, searchKey: '', interactions: false } },
-    ],
   })
 
   const [addVote] = useMutation(VOTE, {
@@ -284,14 +275,6 @@ export default function Post({
     toast.success('Link copied!')
   }
 
-  const handleToggleVoting = async () => {
-    if (!ensureAuth()) return
-    try {
-      await toggleVoting({ variables: { postId: _id } })
-      toast.success(post.enable_voting ? 'Voting disabled' : 'Voting enabled')
-    } catch (err) { toast.error(`Error: ${err instanceof Error ? err.message : 'Unknown'}`) }
-  }
-
   const approveCount = post.approvedBy?.length || 0
   const rejectCount = post.rejectedBy?.length || 0
   const commentCount = post.comments?.length || 0
@@ -389,47 +372,44 @@ export default function Post({
         )}
       </div>
 
-      {/* ── Sticky action bar (matches monorepo glassmorphic sticky bar) ── */}
+      {/* ── Sticky action bar ── */}
       <div
-        className="sticky top-0 z-10 flex items-center flex-wrap gap-2 px-4 sm:px-6 py-2
+        className="sticky top-0 z-10 flex items-center gap-2 px-4 sm:px-6 py-2
           bg-background/80 backdrop-blur-sm border-y border-border/60"
         role="toolbar"
         aria-label="Post actions"
       >
-        {/* Sentiment: Disagree / Support — only when voting is enabled */}
-        {post.enable_voting && (
-          <div className="flex flex-1 min-w-0 gap-2">
-            <Button
-              size="sm"
-              onClick={handleReject}
-              aria-label={hasRejected ? 'Remove downvote' : 'Downvote this post'}
-              className={cn(
-                'flex-1 min-w-0 rounded-xl font-bold text-xs h-8 border',
-                hasRejected
-                  ? 'bg-destructive border-destructive text-destructive-foreground hover:bg-destructive/90'
-                  : 'bg-transparent border-destructive/40 text-destructive hover:bg-destructive/5 hover:border-destructive'
-              )}
-            >
-              Disagree{rejectCount > 0 ? ` (${rejectCount})` : ''}
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleApprove}
-              aria-label={hasApproved ? 'Remove upvote' : 'Upvote this post'}
-              className={cn(
-                'flex-1 min-w-0 rounded-xl font-bold text-xs h-8',
-                hasApproved
-                  ? 'bg-[#1b5e20] text-white hover:bg-[#0a3d0a] shadow-[0_4px_14px_rgba(46,125,50,0.39)]'
-                  : 'bg-[#2e7d32] text-white hover:bg-[#1b5e20] shadow-[0_4px_14px_rgba(46,125,50,0.39)]'
-              )}
-            >
-              Support{approveCount > 0 ? ` (${approveCount})` : ''}
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-1 ml-auto flex-wrap">
+          {/* Sentiment buttons — always visible */}
+          <Button
+            size="sm"
+            onClick={handleReject}
+            aria-label={hasRejected ? 'Remove downvote' : 'Downvote this post'}
+            className={cn(
+              'rounded-xl font-bold text-xs h-8 border',
+              hasRejected
+                ? 'bg-destructive border-destructive text-destructive-foreground hover:bg-destructive/90'
+                : 'bg-transparent border-destructive/40 text-destructive hover:bg-destructive/5 hover:border-destructive'
+            )}
+          >
+            Disagree{rejectCount > 0 ? ` (${rejectCount})` : ''}
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleApprove}
+            aria-label={hasApproved ? 'Remove upvote' : 'Upvote this post'}
+            className={cn(
+              'rounded-xl font-bold text-xs h-8',
+              hasApproved
+                ? 'bg-[#1b5e20] text-white hover:bg-[#0a3d0a] shadow-[0_4px_14px_rgba(46,125,50,0.39)]'
+                : 'bg-[#2e7d32] text-white hover:bg-[#1b5e20] shadow-[0_4px_14px_rgba(46,125,50,0.39)]'
+            )}
+          >
+            Support{approveCount > 0 ? ` (${approveCount})` : ''}
+          </Button>
 
-        {/* Utilities: follow, bookmark, voting toggle (owner), delete (owner/admin) */}
-        <div className="flex items-center gap-1 ml-auto">
+          <Separator orientation="vertical" className="h-5 mx-0.5" />
+
           {!isOwner && (
             <FollowButton
               isFollowing={isFollowing}
@@ -444,34 +424,9 @@ export default function Post({
             user={{ _id: user._id || '' }}
           />
 
-          {isOwner && (
-            <>
-              <Separator orientation="vertical" className="h-5 mx-1" />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    {/* label makes the whole row clickable */}
-                    <label className="flex items-center gap-1.5 px-1 cursor-pointer select-none">
-                      <Switch
-                        size="sm"
-                        checked={post.enable_voting ?? false}
-                        onCheckedChange={handleToggleVoting}
-                        aria-label={post.enable_voting ? 'Disable voting' : 'Enable voting'}
-                      />
-                      <span className="text-xs font-medium text-muted-foreground">Voting</span>
-                    </label>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    {post.enable_voting ? 'Disable voting on this post' : 'Enable voting on this post'}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </>
-          )}
-
           {(isOwner || admin) && (
             <>
-              <Separator orientation="vertical" className="h-5 mx-1" />
+              <Separator orientation="vertical" className="h-5 mx-0.5" />
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>

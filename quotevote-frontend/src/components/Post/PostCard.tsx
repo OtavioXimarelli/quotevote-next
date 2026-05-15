@@ -18,15 +18,26 @@ import HighlightText from '@/components/HighlightText/HighlightText'
 import { DisplayAvatar } from '@/components/DisplayAvatar'
 import type { PostCardProps } from '@/types/post'
 
-const ACTIVITY_BORDER: Record<string, string> = {
-  POSTED: '#56b3ff',
-  COMMENTED: '#fdd835',
-  UPVOTED: '#52b274',
-  DOWNVOTED: '#ff6060',
-  LIKED: '#56b3ff',
-  QOUTED: '#e36dfa',
-  QUOTED: '#e36dfa',
-}
+const CARD_THEMES = {
+  support: {
+    bg: 'rgba(82,178,116,0.08)',
+    borderColor: '#52b274',
+    shadow: '4px 4px 0px #52b274',
+    hoverShadow: '7px 7px 0px #52b274',
+  },
+  disagree: {
+    bg: 'rgba(255,96,96,0.08)',
+    borderColor: '#ff6060',
+    shadow: '4px 4px 0px #ff6060',
+    hoverShadow: '7px 7px 0px #ff6060',
+  },
+  neutral: {
+    bg: '',
+    borderColor: '#56b3ff',
+    shadow: '4px 4px 0px rgba(86,179,255,0.45)',
+    hoverShadow: '7px 7px 0px rgba(86,179,255,0.55)',
+  },
+} as const
 
 function stringLimit(text: string, limit: number): string {
   if (!text || text.length <= limit) return text
@@ -43,7 +54,7 @@ function PostCardComponent({
   rejectedBy = [],
   created,
   creator,
-  activityType = 'POSTED',
+  activityType: _activityType = 'POSTED',
   limitText = false,
   votes = [],
   comments = [],
@@ -65,9 +76,26 @@ function PostCardComponent({
   const [approvePost, { loading: approvingPost }] = useMutation(APPROVE_POST)
   const [rejectPost, { loading: rejectingPost }] = useMutation(REJECT_POST)
 
+  // Local optimistic state — updates immediately on vote so color reflects right away
+  const [localApprovedBy, setLocalApprovedBy] = useState<string[]>(() => approvedBy || [])
+  const [localRejectedBy, setLocalRejectedBy] = useState<string[]>(() => rejectedBy || [])
+
+  // Sync when server data refreshes — updating state during render is the React-recommended
+  // pattern for deriving state from props without triggering a cascading effect cycle.
+  const [prevApprovedBy, setPrevApprovedBy] = useState(approvedBy)
+  const [prevRejectedBy, setPrevRejectedBy] = useState(rejectedBy)
+  if (prevApprovedBy !== approvedBy) {
+    setPrevApprovedBy(approvedBy)
+    setLocalApprovedBy(approvedBy || [])
+  }
+  if (prevRejectedBy !== rejectedBy) {
+    setPrevRejectedBy(rejectedBy)
+    setLocalRejectedBy(rejectedBy || [])
+  }
+
   const isBookmarked = userId ? bookmarkedBy.includes(userId) : false
-  const hasApproved = userId ? (approvedBy || []).includes(userId) : false
-  const hasRejected = userId ? (rejectedBy || []).includes(userId) : false
+  const hasApproved = userId ? localApprovedBy.includes(userId) : false
+  const hasRejected = userId ? localRejectedBy.includes(userId) : false
 
   const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -93,9 +121,18 @@ function PostCardComponent({
     e.stopPropagation()
     if (!guestGuard()) return
     if (!userId) return
+    // Optimistic update
+    if (hasApproved) {
+      setLocalApprovedBy((prev) => prev.filter((id) => id !== userId))
+    } else {
+      setLocalApprovedBy((prev) => [...prev, userId])
+      setLocalRejectedBy((prev) => prev.filter((id) => id !== userId))
+    }
     try {
       await approvePost({ variables: { postId: _id, userId, remove: hasApproved } })
     } catch {
+      setLocalApprovedBy(approvedBy || [])
+      setLocalRejectedBy(rejectedBy || [])
       toast.error('Failed to update vote')
     }
   }
@@ -104,9 +141,18 @@ function PostCardComponent({
     e.stopPropagation()
     if (!guestGuard()) return
     if (!userId) return
+    // Optimistic update
+    if (hasRejected) {
+      setLocalRejectedBy((prev) => prev.filter((id) => id !== userId))
+    } else {
+      setLocalRejectedBy((prev) => [...prev, userId])
+      setLocalApprovedBy((prev) => prev.filter((id) => id !== userId))
+    }
     try {
       await rejectPost({ variables: { postId: _id, userId, remove: hasRejected } })
     } catch {
+      setLocalApprovedBy(approvedBy || [])
+      setLocalRejectedBy(rejectedBy || [])
       toast.error('Failed to update vote')
     }
   }
@@ -166,10 +212,16 @@ function PostCardComponent({
   }
 
   const username = creator?.username || 'Anonymous'
-  const upvoteCount = approvedBy?.length || 0
-  const downvoteCount = rejectedBy?.length || 0
-  const borderColor =
-    ACTIVITY_BORDER[(activityType || 'POSTED').toUpperCase()] ?? '#56b3ff'
+  const upvoteCount = localApprovedBy.length
+  const downvoteCount = localRejectedBy.length
+
+  const cardTheme = (() => {
+    const up = localApprovedBy.length
+    const down = localRejectedBy.length
+    if (up > 0 && up > down) return CARD_THEMES.support
+    if (down > 0 && down > up) return CARD_THEMES.disagree
+    return CARD_THEMES.neutral
+  })()
 
   const formattedDate = useMemo(
     () =>
@@ -186,8 +238,25 @@ function PostCardComponent({
 
   return (
     <article
-      className="group/card bg-card rounded-[7px] border border-border/60 cursor-pointer overflow-hidden transition-shadow duration-200 hover:shadow-[10px_7px_10px_0_rgba(82,178,116,0.15),_0_4px_20px_0_rgba(0,0,0,0.1)]"
-      style={{ borderBottom: `10px solid ${borderColor}` }}
+      className={cn(
+        'group/card rounded-[7px] cursor-pointer overflow-hidden',
+        !cardTheme.bg && 'bg-card',
+      )}
+      style={{
+        ...(cardTheme.bg ? { backgroundColor: cardTheme.bg } : {}),
+        border: `2px solid ${cardTheme.borderColor}`,
+        borderBottom: `8px solid ${cardTheme.borderColor}`,
+        boxShadow: cardTheme.shadow,
+        transition: 'box-shadow 0.15s ease, transform 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = cardTheme.hoverShadow
+        e.currentTarget.style.transform = 'translate(-2px, -2px)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = cardTheme.shadow
+        e.currentTarget.style.transform = ''
+      }}
       onClick={handleCardClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

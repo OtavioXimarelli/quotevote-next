@@ -40,6 +40,12 @@ jest.mock('@/components/UserPosts', () => ({
   ),
 }));
 
+jest.mock('@/components/Activity/PaginatedActivityList', () => ({
+  PaginatedActivityList: ({ activityEvent }: { activityEvent: string[] }) => (
+    <div data-testid="paginated-activity-list">{activityEvent.join(',')}</div>
+  ),
+}));
+
 const mockProfileUser: ProfileUser = {
   _id: 'user1',
   username: 'testuser',
@@ -103,13 +109,15 @@ describe('ProfileView', () => {
       expect(screen.getByText(/Header for testuser/)).toBeInTheDocument();
     });
 
-    it('renders tabs with Posts, Activity, and About', async () => {
+    it('renders tabs with All Posts, Voted, Commented, Quoted, and About', async () => {
       await act(async () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: 'Posts' })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: 'Activity' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'All Posts' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Voted' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Commented' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Quoted' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: 'About' })).toBeInTheDocument();
       });
     });
@@ -136,15 +144,15 @@ describe('ProfileView', () => {
       expect(screen.getByText('Reputation')).toBeInTheDocument();
     });
 
-    it('shows activity filters when Activity tab is clicked', async () => {
+    it('shows voted activity list when Voted tab is clicked', async () => {
       const user = userEvent.setup();
       await act(async () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
-      const activityTab = screen.getByRole('tab', { name: 'Activity' });
-      await user.click(activityTab);
+      const votedTab = screen.getByRole('tab', { name: 'Voted' });
+      await user.click(votedTab);
       await waitFor(() => {
-        expect(screen.getByText('All')).toBeInTheDocument();
+        expect(screen.getByTestId('paginated-activity-list')).toBeInTheDocument();
       });
     });
 
@@ -195,7 +203,7 @@ describe('ProfileView', () => {
         const result = render(<ProfileView profileUser={mockProfileUser} />);
         container = result.container;
       });
-      const contentContainer = container!.querySelector('.space-y-6');
+      const contentContainer = container!.querySelector('.pb-8');
       expect(contentContainer).toBeInTheDocument();
     });
   });
@@ -272,7 +280,7 @@ describe('ProfileView', () => {
         const result = render(<ProfileView profileUser={mockProfileUser} />);
         container = result.container;
       });
-      const spaceYContainer = container!.querySelector('.space-y-6');
+      const spaceYContainer = container!.querySelector('.pb-8');
       expect(spaceYContainer).toBeInTheDocument();
     });
   });
