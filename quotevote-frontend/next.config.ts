@@ -33,7 +33,20 @@ const nextConfig: NextConfig = {
   compress: true,
 
   async redirects() {
-    return []
+    return [
+      // Legacy comment deep links appended `/comment` as a path segment.
+      // Preserve the hash client-side; strip the invalid route segment.
+      {
+        source: "/post/:group/:title/:postId/comment",
+        destination: "/post/:group/:title/:postId",
+        permanent: false,
+      },
+      {
+        source: "/post/:group/:title/:postId/comment/",
+        destination: "/post/:group/:title/:postId",
+        permanent: false,
+      },
+    ];
   },
 
   // Security headers

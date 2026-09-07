@@ -505,7 +505,7 @@ describe('PostActionCard', () => {
 
       await waitFor(() => {
         // Use the actual origin from window.location (usually http://localhost in tests)
-        const expectedUrl = `${window.location.origin}/post/123/comment#comment1`
+        const expectedUrl = `${window.location.origin}/post/123#comment1`
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expectedUrl)
       })
 

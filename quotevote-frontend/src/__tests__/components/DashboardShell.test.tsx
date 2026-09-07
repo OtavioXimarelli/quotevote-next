@@ -5,7 +5,7 @@
  * matching the guest directory menu pattern.
  */
 
-import { render, screen, within } from "../utils/test-utils";
+import { render, screen, within, fireEvent } from "../utils/test-utils";
 import userEvent from "@testing-library/user-event";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useAppStore } from "@/store";
@@ -126,11 +126,24 @@ describe("DashboardShell authenticated sidebar (#492)", () => {
       </DashboardShell>
     );
 
-    expect(screen.getByRole("button", { name: "Messages" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Messages" }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTestId("desktop-messages-button")).toBeInTheDocument();
     await openAccountMenu();
 
     const menu = screen.getByTestId("authenticated-account-menu");
     expect(within(menu).queryByText("Messages")).not.toBeInTheDocument();
+  });
+
+  it("opens the messages panel from the desktop navbar button", async () => {
+    useAppStore.getState().setUserData(regularUser);
+    render(
+      <DashboardShell>
+        <div>feed</div>
+      </DashboardShell>
+    );
+
+    fireEvent.click(screen.getByTestId("desktop-messages-button"));
+    expect(useAppStore.getState().chat.open).toBe(true);
   });
 
   it("includes Settings, Donate, GitHub, and Sign Out in the sidebar", async () => {
