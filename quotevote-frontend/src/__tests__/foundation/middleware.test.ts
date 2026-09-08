@@ -1,5 +1,10 @@
 /**
  * Middleware + JWT session tests for auth redirect / admin gate behavior.
+ *
+ * Uses the Node environment so Web Crypto / HMAC verification matches
+ * production Edge crypto (jsdom's crypto.subtle is unreliable in CI).
+ *
+ * @jest-environment node
  */
 
 jest.mock('next/server', () => ({

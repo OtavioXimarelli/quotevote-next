@@ -59,24 +59,59 @@ async function verifyHs256(token: string, secret: string): Promise<Record<string
   const payload = decodePayloadJson(payloadB64)
   if (!payload) return null
 
-  const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`)
+  const signingInput = `${headerB64}.${payloadB64}`
   const signature = decodeBase64Url(signatureB64)
-  const key = await crypto.subtle.importKey(
+
+  // Prefer Node HMAC when available (Jest / Node). Avoid a static `crypto`
+  // import so Next.js Edge middleware bundling stays valid.
+  const nodeVerified = verifyHs256WithNodeHmac(signingInput, signature, secret)
+  if (nodeVerified !== undefined) {
+    if (!nodeVerified) return null
+    if (isExpiredPayload(payload)) return 'expired'
+    return payload
+  }
+
+  const subtle = globalThis.crypto?.subtle
+  if (!subtle) return null
+
+  const key = await subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['verify'],
   )
-  const valid = await crypto.subtle.verify(
-    'HMAC',
-    key,
-    signature.buffer.slice(signature.byteOffset, signature.byteOffset + signature.byteLength) as ArrayBuffer,
-    data,
-  )
+  // Copy into a standalone Uint8Array — some runtimes reject Buffer-backed views.
+  const signatureCopy = new Uint8Array(signature.byteLength)
+  signatureCopy.set(signature)
+  const valid = await subtle.verify('HMAC', key, signatureCopy, new TextEncoder().encode(signingInput))
   if (!valid) return null
   if (isExpiredPayload(payload)) return 'expired'
   return payload
+}
+
+/**
+ * Returns true/false when Node crypto is usable, or undefined to fall back.
+ */
+function verifyHs256WithNodeHmac(
+  signingInput: string,
+  signature: Uint8Array,
+  secret: string,
+): boolean | undefined {
+  if (typeof process === 'undefined' || typeof process.versions?.node !== 'string') {
+    return undefined
+  }
+  try {
+    // Dynamic require keeps this optional for Edge bundles.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const nodeCrypto = require('crypto') as typeof import('crypto')
+    const expected = nodeCrypto.createHmac('sha256', secret).update(signingInput, 'utf8').digest()
+    const actual = Buffer.from(signature)
+    if (expected.length !== actual.length) return false
+    return nodeCrypto.timingSafeEqual(expected, actual)
+  } catch {
+    return undefined
+  }
 }
 
 /**
