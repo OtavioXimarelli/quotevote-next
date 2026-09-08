@@ -44,6 +44,7 @@ import { GET_POST, GET_TOP_POSTS, GET_USER_ACTIVITY, GET_USERS } from "@/graphql
 import useGuestGuard from "@/hooks/useGuestGuard";
 import { cn } from "@/lib/utils";
 import { scrollActionIntoDiscussion } from "@/lib/utils/discussionSplit";
+import { toAbsolutePostUrl } from "@/lib/utils/sanitizeUrl";
 import { useAppStore } from "@/store";
 import VotingBoard from "@/components/VotingComponents/VotingBoard";
 const VotingPopup = lazy(() => import("@/components/VotingComponents/VotingPopup"));
@@ -390,9 +391,17 @@ export default function Post({
   };
 
   const handleCopy = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied!");
+    const url = toAbsolutePostUrl(post.url) ?? toAbsolutePostUrl(typeof window !== "undefined" ? window.location.pathname : "");
+    if (!url) {
+      toast.error("Unable to copy link — this post has no shareable URL");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied!");
+    } catch {
+      toast.error("Failed to copy link");
+    }
   };
 
   const approveCount = post.approvedBy?.length || 0;

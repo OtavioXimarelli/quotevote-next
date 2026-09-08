@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { buildContentSecurityPolicy } from "./src/lib/security/csp";
 
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
 const wsUrl = serverUrl.replace(/^http/, "ws");
@@ -33,7 +34,7 @@ const nextConfig: NextConfig = {
   compress: true,
 
   async redirects() {
-    return []
+    return [];
   },
 
   // Security headers
@@ -81,15 +82,11 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https:",
-              "font-src 'self' data: https://fonts.gstatic.com",
-              `connect-src 'self' ${serverUrl} ${wsUrl} https://fonts.googleapis.com https://fonts.gstatic.com`,
-              "frame-ancestors 'none'",
-            ].join("; "),
+            value: buildContentSecurityPolicy({
+              isProduction: process.env.NODE_ENV === "production",
+              serverUrl,
+              wsUrl,
+            }),
           },
         ],
       },

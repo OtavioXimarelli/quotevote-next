@@ -130,11 +130,11 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: 'All' })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: 'Posts' })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: 'Voted' })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: 'Commented' })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: 'Quoted' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Posts' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Voted' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Commented' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Quoted' })).toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: 'About' })).not.toBeInTheDocument();
       });
     });
@@ -155,8 +155,8 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
       await waitFor(() => {
-        const allButton = screen.getByRole('tab', { name: 'All' });
-        expect(allButton).toHaveAttribute('aria-selected', 'true');
+        const allButton = screen.getByRole('button', { name: 'All' });
+        expect(allButton).toHaveAttribute('aria-pressed', 'true');
         expect(allButton).toHaveAttribute('data-state', 'active');
         expect(screen.getByTestId('paginated-activity-list')).toHaveTextContent('ALL');
       });
@@ -167,13 +167,13 @@ describe('ProfileView', () => {
       await act(async () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
-      const postsButton = screen.getByRole('tab', { name: 'Posts' });
+      const postsButton = screen.getByRole('button', { name: 'Posts' });
       await user.click(postsButton);
 
       await waitFor(() => {
-        expect(postsButton).toHaveAttribute('aria-selected', 'true');
+        expect(postsButton).toHaveAttribute('aria-pressed', 'true');
         expect(postsButton).toHaveAttribute('data-state', 'active');
-        expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'false');
+        expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
         expect(screen.getByTestId('paginated-activity-list')).toHaveTextContent('POSTED');
       });
     });
@@ -184,24 +184,24 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
 
-      const votedButton = screen.getByRole('tab', { name: 'Voted' });
+      const votedButton = screen.getByRole('button', { name: 'Voted' });
       await user.click(votedButton);
       await waitFor(() => {
-        expect(votedButton).toHaveAttribute('aria-selected', 'true');
+        expect(votedButton).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByTestId('paginated-activity-list')).toHaveTextContent('VOTED');
       });
 
-      const allButton = screen.getByRole('tab', { name: 'All' });
+      const allButton = screen.getByRole('button', { name: 'All' });
       await user.click(allButton);
       await waitFor(() => {
-        expect(allButton).toHaveAttribute('aria-selected', 'true');
+        expect(allButton).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByTestId('paginated-activity-list')).toHaveTextContent('ALL');
       });
 
-      const commentedButton = screen.getByRole('tab', { name: 'Commented' });
+      const commentedButton = screen.getByRole('button', { name: 'Commented' });
       await user.click(commentedButton);
       await waitFor(() => {
-        expect(commentedButton).toHaveAttribute('aria-selected', 'true');
+        expect(commentedButton).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByTestId('paginated-activity-list')).toHaveTextContent('COMMENTED');
       });
     });
@@ -212,18 +212,18 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
 
-      const postsButton = screen.getByRole('tab', { name: 'Posts' });
-      const commentedButton = screen.getByRole('tab', { name: 'Commented' });
+      const postsButton = screen.getByRole('button', { name: 'Posts' });
+      const commentedButton = screen.getByRole('button', { name: 'Commented' });
 
       await user.click(postsButton);
       await user.click(commentedButton);
 
       await waitFor(() => {
-        expect(postsButton).toHaveAttribute('aria-selected', 'true');
-        expect(commentedButton).toHaveAttribute('aria-selected', 'true');
-        expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'false');
-        expect(screen.getByRole('tab', { name: 'Voted' })).toHaveAttribute('aria-selected', 'false');
-        expect(screen.getByRole('tab', { name: 'Quoted' })).toHaveAttribute('aria-selected', 'false');
+        expect(postsButton).toHaveAttribute('aria-pressed', 'true');
+        expect(commentedButton).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+        expect(screen.getByRole('button', { name: 'Voted' })).toHaveAttribute('aria-pressed', 'false');
+        expect(screen.getByRole('button', { name: 'Quoted' })).toHaveAttribute('aria-pressed', 'false');
         expect(screen.getByTestId('paginated-activity-list')).toHaveAttribute(
           'data-events',
           'POSTED,COMMENTED'
@@ -237,8 +237,8 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
 
-      const postsButton = screen.getByRole('tab', { name: 'Posts' });
-      const commentedButton = screen.getByRole('tab', { name: 'Commented' });
+      const postsButton = screen.getByRole('button', { name: 'Posts' });
+      const commentedButton = screen.getByRole('button', { name: 'Commented' });
 
       await user.click(postsButton);
       await user.click(commentedButton);
@@ -252,8 +252,8 @@ describe('ProfileView', () => {
       // Untoggle Posts
       await user.click(postsButton);
       await waitFor(() => {
-        expect(postsButton).toHaveAttribute('aria-selected', 'false');
-        expect(commentedButton).toHaveAttribute('aria-selected', 'true');
+        expect(postsButton).toHaveAttribute('aria-pressed', 'false');
+        expect(commentedButton).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByTestId('paginated-activity-list')).toHaveAttribute(
           'data-events',
           'COMMENTED'
@@ -267,16 +267,16 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
 
-      const postsButton = screen.getByRole('tab', { name: 'Posts' });
+      const postsButton = screen.getByRole('button', { name: 'Posts' });
       await user.click(postsButton);
       await waitFor(() => {
-        expect(postsButton).toHaveAttribute('aria-selected', 'true');
+        expect(postsButton).toHaveAttribute('aria-pressed', 'true');
       });
 
       // Uncheck Posts
       await user.click(postsButton);
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByTestId('paginated-activity-list')).toHaveTextContent('ALL');
       });
     });
@@ -287,23 +287,23 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
 
-      const postsButton = screen.getByRole('tab', { name: 'Posts' });
-      const votedButton = screen.getByRole('tab', { name: 'Voted' });
-      const allButton = screen.getByRole('tab', { name: 'All' });
+      const postsButton = screen.getByRole('button', { name: 'Posts' });
+      const votedButton = screen.getByRole('button', { name: 'Voted' });
+      const allButton = screen.getByRole('button', { name: 'All' });
 
       await user.click(postsButton);
       await user.click(votedButton);
 
       await waitFor(() => {
-        expect(postsButton).toHaveAttribute('aria-selected', 'true');
-        expect(votedButton).toHaveAttribute('aria-selected', 'true');
+        expect(postsButton).toHaveAttribute('aria-pressed', 'true');
+        expect(votedButton).toHaveAttribute('aria-pressed', 'true');
       });
 
       await user.click(allButton);
       await waitFor(() => {
-        expect(allButton).toHaveAttribute('aria-selected', 'true');
-        expect(postsButton).toHaveAttribute('aria-selected', 'false');
-        expect(votedButton).toHaveAttribute('aria-selected', 'false');
+        expect(allButton).toHaveAttribute('aria-pressed', 'true');
+        expect(postsButton).toHaveAttribute('aria-pressed', 'false');
+        expect(votedButton).toHaveAttribute('aria-pressed', 'false');
         expect(screen.getByTestId('paginated-activity-list')).toHaveTextContent('ALL');
       });
     });
@@ -375,13 +375,13 @@ describe('ProfileView', () => {
   });
 
   describe('Component Integration', () => {
-    it('renders profile header and tablist together', async () => {
+    it('renders profile header and filter group together', async () => {
       await act(async () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
       await waitFor(() => {
         expect(screen.getByTestId('profile-header')).toBeInTheDocument();
-        expect(screen.getByRole('tablist')).toBeInTheDocument();
+        expect(screen.getByRole('group', { name: /activity filters/i })).toBeInTheDocument();
       });
     });
 
@@ -403,21 +403,21 @@ describe('ProfileView', () => {
         render(<ProfileView profileUser={mockProfileUser} />);
       });
 
-      const votedButton = screen.getByRole('tab', { name: 'Voted' });
+      const votedButton = screen.getByRole('button', { name: 'Voted' });
       await user.click(votedButton);
       await waitFor(() => {
         expect(votedButton.className).toContain('border-[#52b274]');
         expect(votedButton.className).toContain('text-[#52b274]');
       });
 
-      const commentedButton = screen.getByRole('tab', { name: 'Commented' });
+      const commentedButton = screen.getByRole('button', { name: 'Commented' });
       await user.click(commentedButton);
       await waitFor(() => {
         expect(commentedButton.className).toContain('border-[#ca8a04]');
         expect(commentedButton.className).toContain('text-[#ca8a04]');
       });
 
-      const quotedButton = screen.getByRole('tab', { name: 'Quoted' });
+      const quotedButton = screen.getByRole('button', { name: 'Quoted' });
       await user.click(quotedButton);
       await waitFor(() => {
         expect(quotedButton.className).toContain('border-[#c026d3]');

@@ -7,7 +7,7 @@ import moment from 'moment'
 import { useQuery, useMutation } from '@apollo/client/react'
 import { Link2, Bookmark, Share2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getDomain, toAppPostUrl } from '@/lib/utils/sanitizeUrl'
+import { getDomain, toAppPostUrl, toAbsolutePostUrl } from '@/lib/utils/sanitizeUrl'
 import { useAppStore } from '@/store'
 import { GET_GROUP } from '@/graphql/queries'
 import { UPDATE_POST_BOOKMARK, APPROVE_POST, REJECT_POST } from '@/graphql/mutations'
@@ -112,11 +112,17 @@ function PostCardComponent({
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    const postUrl = url
-      ? `${window.location.origin}${toAppPostUrl(url)}`
-      : window.location.href
-    await navigator.clipboard.writeText(postUrl)
-    toast.success('Link copied!')
+    const postUrl = toAbsolutePostUrl(url)
+    if (!postUrl) {
+      toast.error('Unable to copy link — this post has no shareable URL')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(postUrl)
+      toast.success('Link copied!')
+    } catch {
+      toast.error('Failed to copy link')
+    }
   }
 
   const handleApprove = async (e: React.MouseEvent) => {
@@ -218,6 +224,12 @@ function PostCardComponent({
   })
 
   const handleCardClick = () => {
+    if (typeof window !== 'undefined') {
+      const selection = window.getSelection()
+      if (selection && !selection.isCollapsed && (selection.toString()?.length ?? 0) > 0) {
+        return
+      }
+    }
     setSelectedPost(_id)
     if (url) router.push(toAppPostUrl(url))
   }

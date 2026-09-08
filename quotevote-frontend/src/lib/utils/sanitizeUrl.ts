@@ -86,6 +86,20 @@ export const toAppPostUrl = (url: string): string => {
 }
 
 /**
+ * Build a same-origin absolute URL for a post, or null when the post has no
+ * canonical path. Callers must fail visibly rather than copying the current page.
+ */
+export const toAbsolutePostUrl = (
+  postUrl: string | null | undefined,
+  origin: string = typeof window !== 'undefined' ? window.location.origin : '',
+): string | null => {
+  if (!postUrl || !postUrl.trim()) return null
+  const path = toAppPostUrl(postUrl.trim())
+  if (!path.startsWith('/post/')) return null
+  return `${origin}${path}`
+}
+
+/**
  * Extract domain name from a URL for display
  * 
  * @param url - The URL to extract domain from

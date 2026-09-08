@@ -1,5 +1,24 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom'
+import { TextDecoder, TextEncoder } from 'util'
+import { webcrypto } from 'crypto'
+
+// jose / Web Crypto consumers need these globals in jsdom
+if (typeof globalThis.TextEncoder === 'undefined') {
+  globalThis.TextEncoder = TextEncoder
+}
+if (typeof globalThis.TextDecoder === 'undefined') {
+  globalThis.TextDecoder = TextDecoder
+}
+if (typeof globalThis.structuredClone !== 'function') {
+  globalThis.structuredClone = (value) => JSON.parse(JSON.stringify(value))
+}
+// Always use Node's Web Crypto in Jest — jsdom's crypto.subtle is incomplete.
+Object.defineProperty(globalThis, 'crypto', {
+  value: webcrypto,
+  configurable: true,
+  writable: true,
+})
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({

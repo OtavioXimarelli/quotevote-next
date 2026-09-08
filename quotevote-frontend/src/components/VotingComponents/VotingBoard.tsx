@@ -187,6 +187,8 @@ export default function VotingBoard({
 
   useLayoutEffect(() => {
     if (!hasLinkedRange) return;
+    // Never auto-scroll while the user is actively selecting text.
+    if (phase === "native") return;
     if (phase === "toolbar" && hasValidRetainedSelection) return;
     const frame = window.requestAnimationFrame(() => {
       scrollLinkedPassageIntoView();
@@ -316,13 +318,53 @@ export default function VotingBoard({
     const delayed = isCoarseTouchEnvironment();
     touchModeRef.current = delayed;
     setTouchMode(delayed);
-    if (delayed) {
-      setPhaseSynced("native");
-    } else {
-      setPhaseSynced("toolbar");
-      onSelect?.(parsed);
+
+    // Desktop toolbar already open: keep it while the selection remains valid.
+    // Flipping back to "native" would hide the popover on every selectionchange.
+    if (phaseRef.current === "toolbar" && !delayed) {
+      return;
     }
-  }, [tryParseSelection, resetToIdle, setPhaseSynced, onSelect]);
+
+    // Stay in "native" while the selection gesture is in progress so we do not
+    // remount Highlighter / notify the parent mid-drag (that causes page jump).
+    setPhaseSynced("native");
+  }, [tryParseSelection, resetToIdle, setPhaseSynced]);
+
+  const performNativeToToolbarTransition = useCallback(
+    (pointerId: number | null) => {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const refreshed = tryParseSelection(sel);
+        if (refreshed) {
+          cachedSelectionRef.current = refreshed.parsed;
+          cachedRectRef.current = refreshed.rect;
+          setSelection(refreshed.parsed);
+        }
+      }
+      if (!cachedSelectionRef.current || !cachedRectRef.current) {
+        resetToIdle();
+        return;
+      }
+      const rectToCache = cachedRectRef.current;
+      const parsedToCommit = cachedSelectionRef.current;
+      const isTouch = touchModeRef.current;
+      flushSync(() => {
+        phaseRef.current = "toolbar";
+        setPhase("toolbar");
+        setSelection(parsedToCommit);
+      });
+      // Touch replaces the native highlight with a retained mark.
+      // Desktop keeps the browser selection — clearing it fires a collapsed
+      // selectionchange that previously reset the toolbar immediately.
+      if (isTouch) {
+        clearNativeSelection();
+      }
+      cachedRectRef.current = rectToCache;
+      onSelect?.(parsedToCommit);
+      armSuppress(pointerId);
+    },
+    [tryParseSelection, resetToIdle, clearNativeSelection, onSelect, armSuppress]
+  );
 
   useEffect(() => {
     const target = selectableRef.current;
@@ -339,7 +381,18 @@ export default function VotingBoard({
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      window.setTimeout(handleSelectionChange, 0);
+      window.setTimeout(() => {
+        handleSelectionChange();
+        // Commit the selection after the gesture ends (desktop + touch).
+        if (phaseRef.current === "native" && cachedSelectionRef.current) {
+          const coarse = isCoarseTouchEnvironment();
+          // Touch keeps the delayed native→toolbar path via outside tap /
+          // non-drag pointer handlers; desktop commits immediately on mouseup.
+          if (!coarse) {
+            performNativeToToolbarTransition(null);
+          }
+        }
+      }, 0);
     };
 
     target.addEventListener("selectstart", onSelectStart);
@@ -360,37 +413,7 @@ export default function VotingBoard({
         intervalRef.current = null;
       }
     };
-  }, [handleSelectionChange]);
-
-  const performNativeToToolbarTransition = useCallback(
-    (pointerId: number | null) => {
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        const refreshed = tryParseSelection(sel);
-        if (refreshed) {
-          cachedSelectionRef.current = refreshed.parsed;
-          cachedRectRef.current = refreshed.rect;
-          setSelection(refreshed.parsed);
-        }
-      }
-      if (!cachedSelectionRef.current || !cachedRectRef.current) {
-        resetToIdle();
-        return;
-      }
-      const rectToCache = cachedRectRef.current;
-      const parsedToCommit = cachedSelectionRef.current;
-      flushSync(() => {
-        phaseRef.current = "toolbar";
-        setPhase("toolbar");
-        setSelection(parsedToCommit);
-      });
-      clearNativeSelection();
-      cachedRectRef.current = rectToCache;
-      onSelect?.(parsedToCommit);
-      armSuppress(pointerId);
-    },
-    [tryParseSelection, resetToIdle, clearNativeSelection, onSelect, armSuppress]
-  );
+  }, [handleSelectionChange, performNativeToToolbarTransition]);
 
   useEffect(() => {
     const active = phase === "native" || (phase === "toolbar" && touchMode);
@@ -446,12 +469,18 @@ export default function VotingBoard({
       if (!tap) return;
       pendingTapRef.current = null;
       if (e.pointerId !== tap.pointerId) return;
-      if (tapDraggedRef.current) return;
+
       if (phaseRef.current === "native" && cachedSelectionRef.current) {
+        // Touch drag-select stays native until an outside/stationary commit.
+        if (tapDraggedRef.current && touchModeRef.current) {
+          tapDraggedRef.current = false;
+          return;
+        }
         performNativeToToolbarTransition(e.pointerId ?? null);
         e.preventDefault();
         e.stopPropagation();
       }
+      tapDraggedRef.current = false;
     };
 
     document.addEventListener("pointerdown", onPointerDownCapture, true);

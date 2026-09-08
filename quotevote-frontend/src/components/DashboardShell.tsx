@@ -30,6 +30,7 @@ import { removeToken } from '@/lib/auth';
 import { useAuthModal } from '@/context/AuthModalContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { routeHasPersistentChatPanel } from '@/lib/utils/chatLayout';
+import { toAbsolutePostUrl } from '@/lib/utils/sanitizeUrl';
 import { usePresenceHeartbeat } from '@/hooks/usePresenceHeartbeat';
 import { usePresenceSubscription } from '@/hooks/usePresenceSubscription';
 import { useRosterManagement } from '@/hooks/useRosterManagement';
@@ -259,7 +260,11 @@ export function DashboardShell({
   };
 
   const handleSharePost = async () => {
-    const url = window.location.href;
+    const url = toAbsolutePostUrl(pathname);
+    if (!url) {
+      toast.error('Unable to share — open a post to copy its link');
+      return;
+    }
     try {
       if (typeof navigator.share === 'function') {
         await navigator.share({ url, title: 'Quote.Vote' });
