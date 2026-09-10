@@ -32,6 +32,8 @@ export default function PostActionList({
     }
     if (!loading && postActions.length && hash) {
       const elementId = hash.replace('#', '')
+      setSharedComment(elementId)
+      setFocusedComment(elementId)
       if (document.getElementById(elementId)) {
         scrollActionIntoDiscussion(elementId, 'center')
       }

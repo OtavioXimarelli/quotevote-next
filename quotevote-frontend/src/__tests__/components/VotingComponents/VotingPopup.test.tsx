@@ -404,6 +404,33 @@ describe('VotingPopup', () => {
     expect(upvoteButton).not.toBeDisabled()
   })
 
+  it('calls onVote when changing from upvote to downvote via tag selection', async () => {
+    const onVote = jest.fn()
+    const onDeleteVote = jest.fn()
+    render(
+      <VotingPopup
+        {...defaultProps}
+        hasVoted={true}
+        userVoteType="up"
+        onVote={onVote}
+        onDeleteVote={onDeleteVote}
+      />,
+    )
+
+    const downvoteButton = screen.getByTestId('highlight-disagree-button')
+    fireEvent.click(downvoteButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('#disagree')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('#disagree'))
+
+    await waitFor(() => {
+      expect(onVote).toHaveBeenCalledWith({ type: 'down', tags: '#disagree' })
+    })
+  })
+
   it('disables buttons and shows clear restriction state when user has voted but onDeleteVote is not provided', () => {
     render(
       <VotingPopup

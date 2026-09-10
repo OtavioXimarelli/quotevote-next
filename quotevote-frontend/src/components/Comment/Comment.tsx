@@ -15,6 +15,7 @@ import { DELETE_COMMENT } from '@/graphql/mutations'
 import { CommentData, Reaction } from '@/types/comment'
 import useGuestGuard from '@/hooks/useGuestGuard'
 import { cn } from '@/lib/utils'
+import { toCommentDeepLink } from '@/lib/utils/sanitizeUrl'
 
 interface CommentProps {
   comment: CommentData
@@ -70,7 +71,8 @@ export default function Comment({ comment, postUrl, selected }: CommentProps) {
 
   const handleCopy = async () => {
     const baseUrl = window.location.origin
-    await navigator.clipboard.writeText(`${baseUrl}${postUrl}/comment/#${_id}`)
+    const path = postUrl || window.location.pathname
+    await navigator.clipboard.writeText(`${baseUrl}${toCommentDeepLink(path, _id)}`)
     toast.success('Link copied!')
   }
 

@@ -94,13 +94,15 @@ export default function VotingPopup({
 
   const handleVote = useCallback(
     (tags: VoteOption) => {
-      if (hasVoted) {
-        return // Don't allow voting if user has already voted
+      // Vote changes are allowed when onDeleteVote is provided; the parent
+      // deletes the existing vote then creates the new one.
+      if (hasVoted && !onDeleteVote) {
+        return
       }
       onVote({ type: expand.type as VoteType, tags })
       handleSetExpand({ open: false, type: '' })
     },
-    [hasVoted, expand.type, onVote, handleSetExpand],
+    [hasVoted, expand.type, onVote, handleSetExpand, onDeleteVote],
   )
 
   const handleAddComment = useCallback(async () => {
