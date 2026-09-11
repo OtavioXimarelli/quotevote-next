@@ -100,6 +100,23 @@ export const toAbsolutePostUrl = (
 }
 
 /**
+ * Build a same-origin deep link to a comment/action on a post page.
+ *
+ * Uses a hash fragment only — do not append `/comment` as a path segment.
+ * That path is not a Next.js route and previously produced broken opens
+ * (HTTP 400 / not found) when copied links were opened.
+ *
+ * @example
+ * toCommentDeepLink('/post/general/some-title/abc123', 'commentId')
+ * // '/post/general/some-title/abc123#commentId'
+ */
+export const toCommentDeepLink = (postUrl: string, commentId: string): string => {
+  const normalizedPostUrl = toAppPostUrl(postUrl).replace(/\/+$/, '')
+  const id = commentId.replace(/^#/, '')
+  return `${normalizedPostUrl}#${id}`
+}
+
+/**
  * Extract domain name from a URL for display
  * 
  * @param url - The URL to extract domain from

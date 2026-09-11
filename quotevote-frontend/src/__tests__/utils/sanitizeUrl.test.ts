@@ -1,7 +1,16 @@
 /**
  * Tests for URL validation and sanitization utilities
  */
-import { sanitizeUrl, containsUrl, getDomain, toAbsolutePostUrl, EMOJI_REGEX, INVALID_URL_CHARS_REGEX } from '@/lib/utils/sanitizeUrl'
+import {
+  sanitizeUrl,
+  containsUrl,
+  getDomain,
+  toAppPostUrl,
+  toAbsolutePostUrl,
+  toCommentDeepLink,
+  EMOJI_REGEX,
+  INVALID_URL_CHARS_REGEX,
+} from '@/lib/utils/sanitizeUrl'
 
 describe('sanitizeUrl', () => {
   describe('valid URLs', () => {
@@ -196,5 +205,29 @@ describe('toAbsolutePostUrl', () => {
   it('returns null for non-post paths so callers cannot copy feed URLs', () => {
     expect(toAbsolutePostUrl('/profile/alice', 'https://quote.vote')).toBeNull()
     expect(toAbsolutePostUrl('/', 'https://quote.vote')).toBeNull()
+  })
+})
+
+describe('toAppPostUrl', () => {
+  it('strips stray question marks', () => {
+    expect(toAppPostUrl('/post/general/title/abc?')).toBe('/post/general/title/abc')
+  })
+})
+
+describe('toCommentDeepLink', () => {
+  it('appends the comment id as a hash on the post path', () => {
+    expect(toCommentDeepLink('/post/general/some-title/abc123', 'commentId')).toBe(
+      '/post/general/some-title/abc123#commentId',
+    )
+  })
+
+  it('does not insert a /comment path segment', () => {
+    const link = toCommentDeepLink('/post/g/t/id', 'c1')
+    expect(link).not.toContain('/comment')
+    expect(link).toBe('/post/g/t/id#c1')
+  })
+
+  it('strips trailing slashes and leading hash from the id', () => {
+    expect(toCommentDeepLink('/post/g/t/id/', '#c1')).toBe('/post/g/t/id#c1')
   })
 })

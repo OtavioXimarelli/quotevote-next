@@ -1,9 +1,35 @@
-import { GraphQLSchema, GraphQLObjectType } from 'graphql';
+import {
+  buildSchema,
+  getIntrospectionQuery,
+  graphql,
+  GraphQLObjectType,
+  GraphQLSchema,
+  printSchema,
+  validateSchema,
+} from 'graphql';
+import Presence from '~/data/models/Presence';
 import { schema } from '~/data/schema';
 
 describe('Executable GraphQL Schema', () => {
   it('is a valid GraphQLSchema instance', () => {
     expect(schema).toBeInstanceOf(GraphQLSchema);
+  });
+
+  it('has no schema validation errors', () => {
+    expect(validateSchema(schema)).toEqual([]);
+  });
+
+  it('supports standard introspection', async () => {
+    const result = await graphql({ schema, source: getIntrospectionQuery() });
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toHaveProperty('__schema');
+  });
+
+  it('prints and rebuilds the schema SDL', () => {
+    const rebuiltSchema = buildSchema(printSchema(schema));
+
+    expect(validateSchema(rebuiltSchema)).toEqual([]);
   });
 
   it('exposes the expected Query fields', () => {
@@ -51,5 +77,70 @@ describe('Executable GraphQL Schema', () => {
     expect(typeMap).toHaveProperty('Date');
     expect(typeMap).toHaveProperty('DateTime');
     expect(typeMap).toHaveProperty('ObjectId');
+  });
+
+  it('binds representative supported query and mutation resolvers', () => {
+    const queryFields = schema.getQueryType()!.getFields();
+    const mutationFields = schema.getMutationType()!.getFields();
+
+    expect(queryFields.posts.resolve).toBeInstanceOf(Function);
+    expect(queryFields.user.resolve).toBeInstanceOf(Function);
+    expect(mutationFields.updateUser.resolve).toBeInstanceOf(Function);
+    expect(mutationFields.heartbeat.resolve).toBeInstanceOf(Function);
+  });
+
+  it('executes representative safe queries through the production schema', async () => {
+    const result = await graphql({ schema, source: '{ hello status }' });
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toEqual({
+      hello: 'Hello from TypeScript Backend! 🚀',
+      status: 'Active',
+    });
+  });
+
+  it('executes a mocked heartbeat mutation through the production schema', async () => {
+    const lastHeartbeat = new Date('2024-01-15T12:00:00.000Z');
+    const updateHeartbeatSpy = jest
+      .spyOn(Presence, 'updateHeartbeat')
+      .mockResolvedValue({
+        lastHeartbeat,
+        status: 'away',
+        statusMessage: 'In a meeting',
+      } as Awaited<ReturnType<typeof Presence.updateHeartbeat>>);
+
+    try {
+      const result = await graphql({
+        schema,
+        source: `
+          mutation {
+            heartbeat {
+              success
+              timestamp
+              status
+              statusMessage
+            }
+          }
+        `,
+        contextValue: {
+          user: {
+            _id: '60d5ec49ad414d7a8d5464a0',
+          },
+        },
+      });
+
+      expect(updateHeartbeatSpy).toHaveBeenCalledWith('60d5ec49ad414d7a8d5464a0');
+      expect(result.errors).toBeUndefined();
+      expect(result.data).toEqual({
+        heartbeat: {
+          success: true,
+          timestamp: lastHeartbeat.toISOString(),
+          status: 'away',
+          statusMessage: 'In a meeting',
+        },
+      });
+    } finally {
+      updateHeartbeatSpy.mockRestore();
+    }
   });
 });

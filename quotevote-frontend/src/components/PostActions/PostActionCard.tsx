@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { DELETE_VOTE, DELETE_COMMENT, DELETE_QUOTE } from '@/graphql/mutations'
 import { GET_ACTION_REACTIONS } from '@/graphql/queries'
 import { cn } from '@/lib/utils'
+import { toCommentDeepLink } from '@/lib/utils/sanitizeUrl'
 import useGuestGuard from '@/hooks/useGuestGuard'
 import type {
   PostActionCardProps,
@@ -114,7 +115,7 @@ export default function PostActionCard({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(`${baseUrl}${postUrl}/comment#${_id}`)
+      await navigator.clipboard.writeText(`${baseUrl}${toCommentDeepLink(postUrl, _id)}`)
       toast.success('Link copied!')
     } catch {
       toast.error('Failed to copy link')

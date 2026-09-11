@@ -353,6 +353,29 @@ export function DashboardShell({
             </button>
 
             {loggedIn && (
+              <button
+                type="button"
+                onClick={() => setChatOpen(!chatOpen)}
+                className={cn(
+                  'relative inline-flex items-center justify-center size-9 rounded-full border-0 transition-all duration-150 cursor-pointer',
+                  chatOpen
+                    ? 'bg-[#52b274]/15 text-[#52b274]'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/70 hover:text-[#52b274]',
+                )}
+                aria-label="Messages"
+                aria-expanded={chatOpen}
+                data-testid="desktop-messages-button"
+              >
+                <MessageSquare className="size-[18px]" fill={chatOpen ? 'currentColor' : 'none'} />
+                {unreadChat > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#52b274] px-[3px] text-[9px] font-bold leading-none text-white ring-2 ring-card">
+                    {unreadChat > 9 ? '9+' : unreadChat}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {loggedIn && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
