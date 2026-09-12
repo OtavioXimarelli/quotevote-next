@@ -5,18 +5,12 @@ import cors from 'cors';
 import http from 'http';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import { GraphQLError } from 'graphql';
 import { schema } from './data/schema';
-import type { GraphQLContext, PubSub } from './types/graphql';
-import { requireAuth } from './data/utils/requireAuth';
-import { pubsub } from './data/utils/pubsub';
+import type { GraphQLContext } from './types/graphql';
+import { createHttpContext } from './context';
+import { disconnectPrisma } from './lib/prisma';
 import { startPresenceCleanup } from './data/utils/presence/cleanupStalePresence';
 import * as auth from './data/utils/authentication';
-import User from './data/models/User';
-import type * as Common from './types/common';
-
-// Use shared pubsub instance referencing the import
-const noOpPubSub: PubSub = pubsub;
 
 // Load environment variables
 dotenv.config();
@@ -63,51 +57,27 @@ async function startServer() {
   app.post('/auth/refresh', auth.refresh);
   app.post('/auth/guest', auth.createGuestUser);
 
-  // GraphQL Integration
+  // GraphQL Integration — context created via shared factory
   app.use(
     '/graphql',
     expressMiddleware(server, {
-      context: async ({ req, res }): Promise<GraphQLContext> => {
-        const token = req.headers.authorization?.split(' ')[1];
-        let user = null;
-
-        // Check if this is an introspection query (GraphQL Playground/IDE)
-        const isIntrospection = req.body?.operationName === 'IntrospectionQuery';
-
-        if (token) {
-          try {
-            const decoded = await auth.verifyToken(token);
-            if (decoded && typeof decoded === 'object' && decoded.userId) {
-              user = (await User.findById(decoded.userId)) as unknown as Common.User;
-            }
-          } catch {
-            // Token invalid or expired, proceed as unauthenticated
-          }
-        }
-
-        // Check if query requires authentication (skip for introspection)
-        if (!isIntrospection) {
-          const query = req.body?.query;
-          if (query && requireAuth(query) && !user) {
-            throw new GraphQLError('Auth token not found in request', {
-              extensions: { code: 'UNAUTHENTICATED' },
-            });
-          }
-        }
-
-        return {
-          req,
-          res,
-          user,
-          pubsub: noOpPubSub,
-        };
-      },
+      context: async ({ req, res }) => createHttpContext({ req, res }),
     })
   );
 
   // 4. Start Server
   await new Promise<void>((resolve) => httpServer.listen({ port: PORT }, resolve));
   console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
+
+  // 5. Graceful Shutdown
+  const shutdown = async () => {
+    console.log('🔄 Shutting down gracefully...');
+    await disconnectPrisma();
+    await mongoose.disconnect();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 startServer();

@@ -20,6 +20,7 @@ const profileId = '60d5ec49ad414d7a8d5464a1';
 
 function mockContext(overrides: Partial<NonNullable<GraphQLContext['user']>> = {}): GraphQLContext {
   return {
+    prisma: {} as GraphQLContext['prisma'],
     req: {} as GraphQLContext['req'],
     res: {} as GraphQLContext['res'],
     pubsub: {} as GraphQLContext['pubsub'],
