@@ -173,6 +173,17 @@ function setSelectionForSubstring(container: HTMLElement, substring: string): Ra
   return range;
 }
 
+/** Desktop selection commits on pointerup after native selectionchange. */
+async function commitDesktopSelection(container: HTMLElement) {
+  await act(async () => {
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  const selectable = container.querySelector("[data-selectable]") as HTMLElement;
+  await act(async () => {
+    fireEvent.pointerUp(selectable);
+  });
+}
+
 function dispatchPointer(
   target: Element | Document,
   type: string,
@@ -235,7 +246,7 @@ describe("VotingBoard — state machine", () => {
     jest.useRealTimers();
   });
 
-  it("desktop: selection opens popover immediately without retained mark", async () => {
+  it("desktop: selection opens popover on pointerup without retained mark", async () => {
     mockTouch(false);
     const onSelect = jest.fn();
     const onDeselect = jest.fn();
@@ -246,10 +257,7 @@ describe("VotingBoard — state machine", () => {
     );
 
     setSelectionForSubstring(container as unknown as HTMLElement, "hello");
-
-    await act(async () => {
-      document.dispatchEvent(new Event("selectionchange"));
-    });
+    await commitDesktopSelection(container as unknown as HTMLElement);
 
     await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1));
     expect(onSelect.mock.calls[0][0].text).toBe("hello");
@@ -257,6 +265,29 @@ describe("VotingBoard — state machine", () => {
     expect(popover.dataset.show).toBe("true");
     expect(screen.queryByTestId("retained-selection-highlight")).not.toBeInTheDocument();
     expect(onDeselect).not.toHaveBeenCalled();
+  });
+
+  it("desktop: toolbar stays open after selectionchange while selection remains", async () => {
+    mockTouch(false);
+    const onSelect = jest.fn();
+    const onDeselect = jest.fn();
+    const { container } = render(
+      <VotingBoard content={CONTENT} onSelect={onSelect} onDeselect={onDeselect}>
+        {(sel) => <span data-testid="sel-text">{sel.text}</span>}
+      </VotingBoard>
+    );
+
+    setSelectionForSubstring(container as unknown as HTMLElement, "hello");
+    await commitDesktopSelection(container as unknown as HTMLElement);
+    await waitFor(() => expect(screen.getByTestId("selection-popover").dataset.show).toBe("true"));
+
+    await act(async () => {
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+
+    expect(screen.getByTestId("selection-popover").dataset.show).toBe("true");
+    expect(onDeselect).not.toHaveBeenCalled();
+    expect(window.getSelection()?.toString()).toBe("hello");
   });
 
   it("desktop: selection collapse dismisses the toolbar", async () => {
@@ -270,9 +301,7 @@ describe("VotingBoard — state machine", () => {
     );
 
     setSelectionForSubstring(container as unknown as HTMLElement, "hello");
-    await act(async () => {
-      document.dispatchEvent(new Event("selectionchange"));
-    });
+    await commitDesktopSelection(container as unknown as HTMLElement);
     await waitFor(() => expect(onSelect).toHaveBeenCalled());
 
     window.getSelection()?.removeAllRanges();
@@ -628,9 +657,7 @@ describe("VotingBoard — state machine", () => {
     );
 
     setSelectionForSubstring(container as unknown as HTMLElement, "hello");
-    await act(async () => {
-      document.dispatchEvent(new Event("selectionchange"));
-    });
+    await commitDesktopSelection(container as unknown as HTMLElement);
     await waitFor(() => expect(screen.getByTestId("selection-popover").dataset.show).toBe("true"));
 
     rerender(

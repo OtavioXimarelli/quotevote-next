@@ -283,17 +283,24 @@ export function SubmitPostForm({ options = [], user, setOpen }: SubmitPostFormPr
 
           {/* Fixed title */}
           <div className={cn('shrink-0 border-b py-3', padX)}>
-            <Input
-              id="title"
-              data-testid="post-title-input"
-              placeholder="Enter Title"
-              maxLength={SUBMIT_POST_TITLE_MAX_LENGTH}
-              {...register('title')}
-              className={cn(
-                'rounded-none border-0 px-0 text-lg shadow-none focus-visible:ring-0',
-                errors.title && 'border-b border-destructive'
-              )}
-            />
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-sm font-semibold text-foreground">
+                Title <span className="text-destructive">*</span>
+                <span className="sr-only">(required)</span>
+              </Label>
+              <Input
+                id="title"
+                data-testid="post-title-input"
+                placeholder="Give your quote a clear title"
+                aria-required="true"
+                maxLength={SUBMIT_POST_TITLE_MAX_LENGTH}
+                {...register('title')}
+                className={cn(
+                  'rounded-md border border-border bg-background px-3 text-lg font-medium shadow-none focus-visible:ring-2 focus-visible:ring-[#52b274]/40',
+                  errors.title && 'border-destructive'
+                )}
+              />
+            </div>
             {errors.title && (
               <p className="mt-1 text-sm text-destructive" data-testid="post-title-error">
                 {errors.title.message}
@@ -321,7 +328,7 @@ export function SubmitPostForm({ options = [], user, setOpen }: SubmitPostFormPr
                     value={field.value || null}
                     onValueChange={field.onChange}
                     placeholder="Select or create a tag"
-                    label=""
+                    label="Tag"
                     error={!!errors.tag}
                     errorMessage={errors.tag?.message}
                     errorTestId="post-tag-error"
@@ -339,16 +346,21 @@ export function SubmitPostForm({ options = [], user, setOpen }: SubmitPostFormPr
 
           {/* Only the post body scrolls */}
           <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain py-3', padX)}>
+            <Label htmlFor="text" className="mb-1.5 text-sm font-semibold text-foreground">
+              Post content <span className="text-destructive">*</span>
+              <span className="sr-only">(required)</span>
+            </Label>
             <Textarea
               id="text"
               data-testid="post-body-input"
               placeholder="Enter your post content (no links allowed)"
+              aria-required="true"
               rows={8}
               {...register('text')}
               style={{ fieldSizing: 'fixed', minHeight: '100%' }}
               className={cn(
-                'min-h-full w-full flex-1 resize-none rounded-none border-0 px-0 shadow-none focus-visible:ring-0',
-                errors.text && 'border border-destructive'
+                'min-h-full w-full flex-1 resize-none rounded-md border border-border bg-background px-3 shadow-none focus-visible:ring-2 focus-visible:ring-[#52b274]/40',
+                errors.text && 'border-destructive'
               )}
             />
             {errors.text && (

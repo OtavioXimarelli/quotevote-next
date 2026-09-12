@@ -1,7 +1,16 @@
 /**
  * Tests for URL validation and sanitization utilities
  */
-import { sanitizeUrl, containsUrl, getDomain, toAppPostUrl, toCommentDeepLink, EMOJI_REGEX, INVALID_URL_CHARS_REGEX } from '@/lib/utils/sanitizeUrl'
+import {
+  sanitizeUrl,
+  containsUrl,
+  getDomain,
+  toAppPostUrl,
+  toAbsolutePostUrl,
+  toCommentDeepLink,
+  EMOJI_REGEX,
+  INVALID_URL_CHARS_REGEX,
+} from '@/lib/utils/sanitizeUrl'
 
 describe('sanitizeUrl', () => {
   describe('valid URLs', () => {
@@ -178,6 +187,24 @@ describe('Regex patterns', () => {
       expect(INVALID_URL_CHARS_REGEX.test('/')).toBe(false)
       expect(INVALID_URL_CHARS_REGEX.test('?')).toBe(false)
     })
+  })
+})
+
+describe('toAbsolutePostUrl', () => {
+  it('builds an absolute canonical post URL', () => {
+    expect(toAbsolutePostUrl('/post/general/title/abc', 'https://quote.vote')).toBe(
+      'https://quote.vote/post/general/title/abc',
+    )
+  })
+
+  it('returns null when the post URL is missing', () => {
+    expect(toAbsolutePostUrl(undefined, 'https://quote.vote')).toBeNull()
+    expect(toAbsolutePostUrl('', 'https://quote.vote')).toBeNull()
+  })
+
+  it('returns null for non-post paths so callers cannot copy feed URLs', () => {
+    expect(toAbsolutePostUrl('/profile/alice', 'https://quote.vote')).toBeNull()
+    expect(toAbsolutePostUrl('/', 'https://quote.vote')).toBeNull()
   })
 })
 

@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import {
   isGuestReadableRoute,
 } from '@/lib/dashboard-routes';
+import { clearAuthCookie, resolveJwtSession } from '@/lib/auth/jwtSession';
 
 // Routes that authenticated users should be redirected away from
 const AUTH_ROUTES = ['/auths/login', '/auths/signup', '/auths/request-access', '/auths/forgot-password'];
@@ -13,42 +14,40 @@ const AUTH_ALWAYS_ACCESSIBLE = ['/auths/error-page', '/auths/investor-thanks', '
 // Authenticated route prefixes (require login unless guest-readable)
 const PROTECTED_PREFIXES = ['/post', '/profile', '/notifications', '/settings', '/control-panel', '/manage-invites'];
 
-/**
- * Lightweight JWT payload decode for edge runtime.
- * Does NOT verify the signature — only reads the payload claims.
- */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = parts[1];
-    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(decoded);
-  } catch {
-    return null;
-  }
+function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
+  const loginUrl = new URL('/auths/login', request.url);
+  loginUrl.searchParams.set('callbackUrl', pathname);
+  const response = NextResponse.redirect(loginUrl);
+  clearAuthCookie(response);
+  return response;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('qv-token')?.value;
+  const session = await resolveJwtSession(token);
 
-  // Auth gates for protected routes
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (isProtected) {
-    if (!token) {
+    if (session.status !== 'valid') {
       if (!isGuestReadableRoute(pathname)) {
-        const loginUrl = new URL('/auths/login', request.url);
-        loginUrl.searchParams.set('callbackUrl', pathname);
-        return NextResponse.redirect(loginUrl);
+        return redirectToLogin(request, pathname);
+      }
+
+      // Guest-readable route with a bad/expired cookie: clear it and continue.
+      if (session.status === 'expired' || session.status === 'invalid') {
+        const response = NextResponse.next();
+        clearAuthCookie(response);
+        return response;
       }
 
       return NextResponse.next();
     }
 
     if (pathname.startsWith('/control-panel')) {
-      const payload = token ? decodeJwtPayload(token) : null;
-      if (!payload || payload.admin !== true) {
+      // Only authorize admin from a cryptographically verified token.
+      // Without JWT_SECRET, defer to the page + API (never trust unsigned claims).
+      if (session.verified && !session.admin) {
         return NextResponse.redirect(new URL('/', request.url));
       }
     }
@@ -58,8 +57,17 @@ export function middleware(request: NextRequest) {
     const isAlwaysAccessible = AUTH_ALWAYS_ACCESSIBLE.some((route) => pathname.startsWith(route));
     const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
 
-    if (token && isAuthRoute && !isAlwaysAccessible) {
-      return NextResponse.redirect(new URL('/', request.url));
+    if (isAuthRoute && !isAlwaysAccessible) {
+      if (session.status === 'valid') {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+
+      // Expired / invalid / missing cookies must not block the login page.
+      if (session.status === 'expired' || session.status === 'invalid') {
+        const response = NextResponse.next();
+        clearAuthCookie(response);
+        return response;
+      }
     }
   }
 

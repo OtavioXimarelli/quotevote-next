@@ -121,51 +121,65 @@ export function ProfileView({
 
       <div className="w-full mt-3">
         <div
-          role="tablist"
-          aria-label="Profile activity filters"
-          className="sticky top-0 z-10 w-full h-11 border-b border-border bg-background/95 backdrop-blur-sm px-0 flex items-center justify-between overflow-x-auto"
+          role="group"
+          aria-label="Profile activity filters. Multiple filters can be active at once."
+          className="sticky top-0 z-10 w-full border-b border-border bg-background/95 backdrop-blur-sm"
         >
-          {/* All Filter */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={isAllActive}
-            data-state={isAllActive ? 'active' : 'inactive'}
-            onClick={handleSelectAll}
-            className={cn(
-              'flex-1 h-full min-w-[50px] inline-flex items-center justify-center whitespace-nowrap px-1 sm:px-3 text-xs sm:text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 border-b-2',
-              isAllActive
-                ? 'border-primary text-foreground font-semibold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            All
-          </button>
+          <div className="flex h-11 items-center justify-between overflow-x-auto px-0">
+            {/* All / clear */}
+            <button
+              type="button"
+              aria-pressed={isAllActive}
+              data-state={isAllActive ? 'active' : 'inactive'}
+              onClick={handleSelectAll}
+              className={cn(
+                'flex-1 h-full min-w-[50px] inline-flex items-center justify-center whitespace-nowrap px-1 sm:px-3 text-xs sm:text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 border-b-2',
+                isAllActive
+                  ? 'border-primary text-foreground font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              All
+            </button>
 
-          {/* Activity Filters: Posts, Voted, Commented, Quoted */}
-          {ACTIVITY_FILTERS.map(({ id, label }) => {
-            const isActive = !isAllActive && selectedFilters.includes(id);
-            const filterStyle = ACTIVITY_FILTER_STYLES[id];
+            {/* Activity Filters: Posts, Voted, Commented, Quoted */}
+            {ACTIVITY_FILTERS.map(({ id, label }) => {
+              const isActive = !isAllActive && selectedFilters.includes(id);
+              const filterStyle = ACTIVITY_FILTER_STYLES[id];
 
-            return (
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={isActive}
+                  data-state={isActive ? 'active' : 'inactive'}
+                  onClick={() => handleToggleFilter(id)}
+                  className={cn(
+                    'flex-1 h-full min-w-[60px] inline-flex items-center justify-center whitespace-nowrap px-1 sm:px-3 text-xs sm:text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 border-b-2',
+                    isActive
+                      ? `${filterStyle.activeBorder} ${filterStyle.activeText} font-semibold`
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {!isAllActive && selectedFilters.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground border-t border-border/50">
+              <span>
+                Showing {selectedFilters.length} filter{selectedFilters.length === 1 ? '' : 's'} (combined)
+              </span>
               <button
-                key={id}
                 type="button"
-                role="tab"
-                aria-selected={isActive}
-                data-state={isActive ? 'active' : 'inactive'}
-                onClick={() => handleToggleFilter(id)}
-                className={cn(
-                  'flex-1 h-full min-w-[60px] inline-flex items-center justify-center whitespace-nowrap px-1 sm:px-3 text-xs sm:text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 border-b-2',
-                  isActive
-                    ? `${filterStyle.activeBorder} ${filterStyle.activeText} font-semibold`
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                )}
+                onClick={handleSelectAll}
+                className="ml-auto font-medium text-primary hover:underline"
               >
-                {label}
+                Clear filters
               </button>
-            );
-          })}
+            </div>
+          )}
         </div>
 
         {/* Content Section */}
