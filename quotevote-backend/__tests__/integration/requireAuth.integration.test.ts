@@ -144,7 +144,9 @@ describe('requireAuth Integration Tests', () => {
             req,
             res,
             user,
+            userId: user?._id ? String(user._id) : null,
             pubsub: noOpPubSub,
+            requestId: 'test-request-id',
           };
         },
       })

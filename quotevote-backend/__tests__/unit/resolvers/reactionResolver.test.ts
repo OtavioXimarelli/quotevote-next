@@ -14,6 +14,8 @@ function mockContext(user: GraphQLContext['user'] = null): GraphQLContext {
     res: {} as GraphQLContext['res'],
     pubsub: {} as GraphQLContext['pubsub'],
     user,
+    userId: user?._id ? String(user._id) : null,
+    requestId: 'test-request-id',
   };
 }
 

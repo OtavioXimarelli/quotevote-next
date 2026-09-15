@@ -131,7 +131,7 @@ describe('GraphQL Context Factory (createHttpContext)', () => {
 
       expect(context.requestId).toBeDefined();
       expect(typeof context.requestId).toBe('string');
-      expect(context.requestId?.length).toBeGreaterThan(0);
+      expect(context.requestId.length).toBeGreaterThan(0);
     });
   });
 

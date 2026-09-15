@@ -5,13 +5,28 @@
  * Uses globalThis caching to prevent multiple instances during development
  * hot-reloads (ts-node-dev --respawn).
  *
- * Usage:
- *   import { prisma } from '~/lib/prisma';
- *   const user = await prisma.user.findUnique({ where: { id } });
+ * ## Injection Path
  *
+ * **GraphQL resolvers** must always access Prisma through `context.prisma`,
+ * which is injected by the context factory (`app/context.ts`). This ensures
+ * the client is mockable in tests and consistent across the request lifecycle.
+ *
+ * **Direct imports** (`import { prisma } from '~/lib/prisma'`) should be
+ * limited to:
+ *   - Process startup / shutdown (`app/server.ts`, `app/context.ts`)
+ *   - CLI scripts and seeds (`scripts/`)
+ *
+ * Importing the singleton directly in a resolver bypasses the factory and
+ * makes the client impossible to inject or mock in unit tests.
+ *
+ * @see app/context.ts  — Context factory that injects prisma into resolvers
  * @see https://www.prisma.io/docs/guides/performance-and-optimization/connection-management
  */
 
+// Load environment variables before constructing PrismaClient so that
+// DATABASE_URL from .env is visible even when this module is imported
+// before dotenv.config() runs in server.ts.
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 
 // Extend globalThis for development hot-reload caching

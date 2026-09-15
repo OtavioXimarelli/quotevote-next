@@ -43,16 +43,16 @@ export interface GraphQLContext {
   req: Request;
   /** Express response object */
   res: Response;
-  /** Currently authenticated user (if any) */
-  user?: Common.User | null;
-  /** Convenience: authenticated user ID as string (derived from user._id) */
-  userId?: string | null;
+  /** Currently authenticated user, or null when unauthenticated */
+  user: Common.User | null;
+  /** Authenticated user ID as string, or null when unauthenticated (derived from user._id) */
+  userId: string | null;
   /** PubSub instance for subscriptions */
   pubsub: PubSub;
   /** Data loaders for batching/caching */
   loaders?: DataLoaders;
-  /** Request ID for tracing */
-  requestId?: string;
+  /** Request ID for tracing — always present (from x-request-id header or generated UUID) */
+  requestId: string;
 }
 
 /**
@@ -69,16 +69,16 @@ export type HttpGraphQLContext = GraphQLContext;
 export interface WsGraphQLContext {
   /** Application-level Prisma Client — shared singleton */
   prisma: PrismaClient;
-  /** Currently authenticated user (if any) */
-  user?: Common.User | null;
-  /** Convenience: authenticated user ID as string */
-  userId?: string | null;
+  /** Currently authenticated user, or null when unauthenticated */
+  user: Common.User | null;
+  /** Authenticated user ID as string, or null when unauthenticated */
+  userId: string | null;
   /** PubSub instance for subscriptions */
   pubsub: PubSub;
   /** Data loaders for batching/caching */
   loaders?: DataLoaders;
-  /** Request ID for tracing */
-  requestId?: string;
+  /** Request ID for tracing — always present */
+  requestId: string;
   /** Parameters passed during WebSocket handshake */
   connectionParams?: Record<string, unknown>;
 }

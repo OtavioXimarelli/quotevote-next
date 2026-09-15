@@ -70,12 +70,31 @@ async function startServer() {
   console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
 
   // 5. Graceful Shutdown
+  // Guard flag prevents the handler from running twice when the process
+  // receives both SIGINT and SIGTERM (common with container orchestrators).
+  let shuttingDown = false;
+
   const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log('🔄 Shutting down gracefully...');
-    await disconnectPrisma();
-    await mongoose.disconnect();
+
+    // Stop accepting new connections and drain in-flight requests
+    try {
+      await server.stop();
+    } catch (err) {
+      console.error('Error stopping Apollo Server:', err);
+    }
+
+    httpServer.close();
+
+    // Disconnect database clients in parallel — allSettled ensures one
+    // failure does not prevent the other from disconnecting.
+    await Promise.allSettled([disconnectPrisma(), mongoose.disconnect()]);
+
     process.exit(0);
   };
+
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
