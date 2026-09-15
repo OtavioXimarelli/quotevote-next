@@ -8,10 +8,13 @@ const userId = '60d5ec49ad414d7a8d5464a0';
 
 function mockContext(user: GraphQLContext['user'] = null): GraphQLContext {
   return {
+    prisma: {} as GraphQLContext['prisma'],
     req: {} as GraphQLContext['req'],
     res: {} as GraphQLContext['res'],
     pubsub: {} as GraphQLContext['pubsub'],
     user,
+    userId: user?._id ? String(user._id) : null,
+    requestId: 'test-request-id',
   };
 }
 

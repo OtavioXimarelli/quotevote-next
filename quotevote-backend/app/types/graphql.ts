@@ -4,6 +4,7 @@
  */
 
 import type { Request, Response } from 'express';
+import type { PrismaClient } from '@prisma/client';
 import type * as Common from '~/types/common';
 
 /**
@@ -22,22 +23,64 @@ export interface PubSub {
 // ============================================================================
 
 /**
- * GraphQL context available in all resolvers
- * Contains request/response objects, authenticated user, and utilities
+ * Canonical GraphQL context available in all resolvers.
+ *
+ * Contains the shared runtime dependencies needed by resolvers:
+ * Prisma Client, authenticated user, Express request/response,
+ * PubSub, DataLoaders, and request metadata.
+ *
+ * Prisma Client uses an application-level lifecycle (singleton)
+ * and is injected through this context — resolvers should never
+ * instantiate their own PrismaClient.
+ *
+ * @see app/lib/prisma.ts  — Prisma Client singleton
+ * @see app/context.ts     — Context factory
  */
 export interface GraphQLContext {
+  /** Application-level Prisma Client — shared singleton, never per-request */
+  prisma: PrismaClient;
   /** Express request object */
   req: Request;
   /** Express response object */
   res: Response;
-  /** Currently authenticated user (if any) */
-  user?: Common.User | null;
+  /** Currently authenticated user, or null when unauthenticated */
+  user: Common.User | null;
+  /** Authenticated user ID as string, or null when unauthenticated (derived from user._id) */
+  userId: string | null;
   /** PubSub instance for subscriptions */
   pubsub: PubSub;
   /** Data loaders for batching/caching */
   loaders?: DataLoaders;
-  /** Request ID for tracing */
-  requestId?: string;
+  /** Request ID for tracing — always present (from x-request-id header or generated UUID) */
+  requestId: string;
+}
+
+/**
+ * HTTP-specific context — identical to base GraphQLContext.
+ * Express req/res are always present for HTTP operations.
+ */
+export type HttpGraphQLContext = GraphQLContext;
+
+/**
+ * WebSocket-specific context for subscription runtime (see #147).
+ * Express req/res are not available over WebSocket connections;
+ * authentication comes through connectionParams instead.
+ */
+export interface WsGraphQLContext {
+  /** Application-level Prisma Client — shared singleton */
+  prisma: PrismaClient;
+  /** Currently authenticated user, or null when unauthenticated */
+  user: Common.User | null;
+  /** Authenticated user ID as string, or null when unauthenticated */
+  userId: string | null;
+  /** PubSub instance for subscriptions */
+  pubsub: PubSub;
+  /** Data loaders for batching/caching */
+  loaders?: DataLoaders;
+  /** Request ID for tracing — always present */
+  requestId: string;
+  /** Parameters passed during WebSocket handshake */
+  connectionParams?: Record<string, unknown>;
 }
 
 // ============================================================================

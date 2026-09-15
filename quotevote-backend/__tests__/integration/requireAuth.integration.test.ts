@@ -140,10 +140,13 @@ describe('requireAuth Integration Tests', () => {
           }
 
           return {
+            prisma: {} as GraphQLContext['prisma'],
             req,
             res,
             user,
+            userId: user?._id ? String(user._id) : null,
             pubsub: noOpPubSub,
+            requestId: 'test-request-id',
           };
         },
       })

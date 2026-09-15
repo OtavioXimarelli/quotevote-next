@@ -18,17 +18,21 @@ jest.mock('~/data/utils/pubsub', () => ({
 const actorId = '60d5ec49ad414d7a8d5464a0';
 
 function mockContext(overrides: Partial<NonNullable<GraphQLContext['user']>> = {}): GraphQLContext {
+  const user = {
+    _id: actorId,
+    username: 'alice',
+    email: 'alice@example.com',
+    admin: false,
+    ...overrides,
+  } as NonNullable<GraphQLContext['user']>;
   return {
+    prisma: {} as GraphQLContext['prisma'],
     req: {} as GraphQLContext['req'],
     res: {} as GraphQLContext['res'],
     pubsub: {} as GraphQLContext['pubsub'],
-    user: {
-      _id: actorId,
-      username: 'alice',
-      email: 'alice@example.com',
-      admin: false,
-      ...overrides,
-    } as NonNullable<GraphQLContext['user']>,
+    user,
+    userId: String(user._id),
+    requestId: 'test-request-id',
   };
 }
 
