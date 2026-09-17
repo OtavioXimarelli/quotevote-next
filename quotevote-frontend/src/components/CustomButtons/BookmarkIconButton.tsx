@@ -7,6 +7,7 @@ import useGuestGuard from "@/hooks/useGuestGuard";
 import { UPDATE_POST_BOOKMARK, CREATE_POST_MESSAGE_ROOM } from "@/graphql/mutations";
 import { GET_CHAT_ROOMS, GET_POST, GET_USER_ACTIVITY, GET_TOP_POSTS } from "@/graphql/queries";
 import type { BookmarkIconButtonProps } from "@/types/components";
+import { POST_ACTION_PILL_CLASS } from "@/lib/constants/postActions";
 import { cn } from "@/lib/utils";
 
 /**
@@ -81,8 +82,10 @@ export function BookmarkIconButton({
         aria-label={label}
         aria-pressed={!!isBookmarked}
         className={cn(
-          "h-8 rounded-full px-2.5 text-xs font-semibold text-[#6b7280] border-[#d1d5db] bg-white shadow-none gap-1 shrink-0",
-          isBookmarked && "text-amber-600 border-amber-300 bg-amber-50",
+          POST_ACTION_PILL_CLASS,
+          "text-muted-foreground border-border bg-background shadow-none gap-1 shrink-0",
+          isBookmarked &&
+            "text-amber-600 border-amber-300 bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:bg-amber-950/40",
           className
         )}
       >

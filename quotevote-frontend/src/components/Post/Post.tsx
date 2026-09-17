@@ -45,6 +45,7 @@ import {
   GET_USERS,
 } from "@/graphql/queries";
 import useGuestGuard from "@/hooks/useGuestGuard";
+import { POST_ACTION_PILL_CLASS } from "@/lib/constants/postActions";
 import { cn } from "@/lib/utils";
 import { scrollActionIntoDiscussion } from "@/lib/utils/discussionSplit";
 import { getDomain, sanitizeUrl, toAbsolutePostUrl } from "@/lib/utils/sanitizeUrl";
@@ -116,6 +117,8 @@ export default function Post({
     errorPolicy: "all",
   });
 
+  // Post has no nested `group` field; cache-first reuses GET_GROUP (also used by PostCard)
+  // so the same groupId does not refetch on re-render or return visits in this session.
   const { data: groupData } = useQuery<{ group?: { _id: string; title: string } }>(GET_GROUP, {
     variables: { groupId: post.groupId || "" },
     skip: !post.groupId,
@@ -506,12 +509,12 @@ export default function Post({
                   username={username || ""}
                   followingLabel="Following"
                   buttonVariant="outline"
-                  className="h-8 rounded-full px-4 text-sm font-semibold border-[#93c5fd] text-[#2563eb] bg-white shadow-none hover:bg-blue-50 hover:text-[#1d4ed8]"
+                  className="h-8 rounded-full px-4 text-sm font-semibold border-blue-300 text-blue-600 bg-background shadow-none hover:bg-blue-50 hover:text-blue-700 dark:border-blue-400/50 dark:text-blue-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-300"
                 />
               )}
             </div>
             {username ? (
-              <p className="mt-1 text-sm text-[#9ca3af] truncate">@{username}</p>
+              <p className="mt-1 text-sm text-muted-foreground truncate">@{username}</p>
             ) : null}
           </div>
         </div>
@@ -519,13 +522,13 @@ export default function Post({
         {/* Post metadata: community, source, timestamp */}
         <div data-testid="post-metadata" className="flex items-center gap-2.5 flex-wrap mb-5">
           {communityTitle ? (
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#6b7280] bg-[#eef2f6] px-3 py-1.5 rounded-full">
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
               <Hash className="size-3.5 stroke-[2.5]" />
               {communityTitle}
             </span>
           ) : null}
           {communityTitle && citationDomain ? (
-            <span className="text-[#c4c9d1] select-none" aria-hidden>
+            <span className="text-border select-none" aria-hidden>
               |
             </span>
           ) : null}
@@ -534,7 +537,7 @@ export default function Post({
               href={citationHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#3b82c4] bg-[#e8f1fb] px-3 py-1.5 rounded-full hover:bg-[#d9eaf8] transition-colors"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-950/40 dark:hover:bg-blue-950/70"
             >
               <Link2 className="size-3.5" />
               Source: {citationDomain}
@@ -542,12 +545,12 @@ export default function Post({
           ) : null}
           <div className="ml-auto flex items-center gap-2.5 shrink-0">
             {(communityTitle || citationDomain) && (
-              <span className="text-[#c4c9d1] select-none" aria-hidden>
+              <span className="text-border select-none" aria-hidden>
                 |
               </span>
             )}
             <time
-              className="text-right text-[13px] text-[#9ca3af] leading-tight"
+              className="text-right text-[13px] text-muted-foreground leading-tight"
               dateTime={created}
               suppressHydrationWarning
             >
@@ -560,7 +563,7 @@ export default function Post({
         {/* Title */}
         <h1
           data-testid="post-detail-title"
-          className="text-[1.75rem] sm:text-[2rem] font-extrabold text-[#111827] leading-[1.15] tracking-[-0.02em] mb-1"
+          className="text-[1.75rem] sm:text-[2rem] font-extrabold text-foreground leading-[1.15] tracking-[-0.02em] mb-1"
         >
           {title}
         </h1>
@@ -589,7 +592,7 @@ export default function Post({
             aria-label={hasApproved ? "Remove approval" : "Approve this post"}
           />
 
-          <span className="text-[#d1d5db] px-0.5 select-none" aria-hidden>
+          <span className="text-border px-0.5 select-none" aria-hidden>
             |
           </span>
 
@@ -603,7 +606,10 @@ export default function Post({
             <button
               type="button"
               onClick={onOpenDiscussion}
-              className="inline-flex items-center gap-1 h-8 rounded-full border border-[#d1d5db] bg-white px-2.5 text-xs font-semibold text-[#6b7280] hover:bg-muted/70 transition-colors shrink-0"
+              className={cn(
+                POST_ACTION_PILL_CLASS,
+                "inline-flex items-center gap-1 border border-border bg-background text-muted-foreground hover:bg-muted/70 transition-colors shrink-0"
+              )}
               aria-label={`${discussionCount} comment${discussionCount !== 1 ? "s" : ""}`}
               data-testid="post-comment-count"
             >
@@ -612,7 +618,10 @@ export default function Post({
             </button>
           ) : (
             <span
-              className="inline-flex items-center gap-1 h-8 rounded-full border border-[#d1d5db] bg-white px-2.5 text-xs font-semibold text-[#6b7280] shrink-0"
+              className={cn(
+                POST_ACTION_PILL_CLASS,
+                "inline-flex items-center gap-1 border border-border bg-background text-muted-foreground shrink-0"
+              )}
               aria-label={`${discussionCount} comment${discussionCount !== 1 ? "s" : ""}`}
               data-testid="post-comment-count"
             >
@@ -626,7 +635,7 @@ export default function Post({
               <Button
                 variant="outline"
                 size="icon"
-                className="size-8 rounded-full text-[#6b7280] border-[#d1d5db] bg-white shadow-none shrink-0"
+                className="size-8 rounded-full text-muted-foreground border-border bg-background shadow-none shrink-0"
                 aria-label="More options"
               >
                 <MoreHorizontal className="size-4" />
@@ -662,7 +671,7 @@ export default function Post({
         <div
           data-testid="post-detail-body"
           className={cn(
-            "text-[16px] leading-[1.7] text-[#374151]",
+            "text-[16px] leading-[1.7] text-foreground/85",
             postHeight && postHeight >= 742 && "max-h-[60vh] overflow-y-auto"
           )}
         >

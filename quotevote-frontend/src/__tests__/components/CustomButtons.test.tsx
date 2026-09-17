@@ -235,7 +235,7 @@ describe('CustomButtons Components', () => {
       if (button) {
         expect(button).toBeInTheDocument();
         // Selected uses default variant (filled)
-        expect(button?.className).toMatch(/bg-\[#22c55e\]|bg-primary/);
+        expect(button?.className).toMatch(/bg-green-500|bg-primary/);
       } else {
         // Component hit error boundary
         expect(container).toBeInTheDocument();
@@ -292,7 +292,7 @@ describe('CustomButtons Components', () => {
         if (button) {
           expect(button).toBeInTheDocument();
           // Check for red color - either custom class or destructive variant
-          const hasRedColor = button?.className.includes('#f87171') || 
+          const hasRedColor = button?.className.includes('bg-red-400') ||
                              button?.className.includes('destructive') ||
                              button?.className.includes('bg-primary'); // May use primary with custom styling
           expect(hasRedColor || button?.className).toBeTruthy();

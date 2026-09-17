@@ -3,6 +3,7 @@
 import { ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ApproveButtonProps } from "@/types/components";
+import { POST_ACTION_PILL_CLASS } from "@/lib/constants/postActions";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,10 +23,11 @@ export function ApproveButton({
       size="sm"
       aria-pressed={selected}
       className={cn(
-        "h-8 rounded-full px-2.5 text-xs font-semibold border shadow-none gap-1 shrink-0",
+        POST_ACTION_PILL_CLASS,
+        "border shadow-none gap-1 shrink-0",
         selected
-          ? "bg-[#22c55e] border-[#22c55e] text-white hover:bg-[#16a34a] hover:text-white"
-          : "bg-[#e9f8ef] border-[#b6e4c6] text-[#2f9e57] hover:bg-[#dff4e7] hover:text-[#278a4b]",
+          ? "bg-green-500 border-green-500 text-white hover:bg-green-600 hover:text-white dark:bg-green-600 dark:border-green-600 dark:hover:bg-green-500"
+          : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:text-green-800 dark:bg-green-950/40 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/70 dark:hover:text-green-300",
         className
       )}
       {...props}
