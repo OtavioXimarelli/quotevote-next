@@ -6,7 +6,7 @@ jest.mock('@prisma/client', () => {
   const model = createMockPrismaModel();
   mockTag = model;
   return {
-    PrismaClient: jest.fn().mockImplementation(() => ({ Tag: model })),
+    PrismaClient: jest.fn().mockImplementation(() => ({ tag: model })),
   };
 });
 
