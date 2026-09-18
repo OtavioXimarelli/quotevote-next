@@ -55,6 +55,7 @@ describe('GraphQL Context Factory (createHttpContext)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Mock prisma.user.findUnique
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (defaultPrisma as any).user = {
       findUnique: jest.fn(),
     };
