@@ -98,7 +98,7 @@ export const TAGS_QUERY = gql`
  */
 export const GET_TAG = gql`
   query getTag($tagId: String!) {
-    group(tagId: $tagId) {
+    tag(tagId: $tagId) {
       _id
       title
     }

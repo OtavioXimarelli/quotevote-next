@@ -213,7 +213,7 @@ type Mutation {
   approvePost(postId: String!, remove: Boolean, userId: String!): Post
   blockBuddy(buddyId: String!): Roster
   clearPresence: Boolean
-  createTag(Tag: TagInput!): Tag
+  createTag(tag: TagInput!): Tag
   createMessage(message: MessageInput!): Message
   createPostMessageRoom(postId: String!): MessageRoom
   declineBuddy(rosterId: String!): DeletedRoster
@@ -287,7 +287,7 @@ type Post {
   downvotes: Int
   enable_voting: Boolean
   featuredSlot: Int
-  TagId: String
+  tagId: String
   messageRoom: MessageRoom
   pointTimestamp: String
   quotes: [Quote]
@@ -314,7 +314,7 @@ input PostInput {
   attribution: String
   attributionType: String
   citationUrl: String
-  TagId: String!
+  tagId: String!
   text: String!
   title: String!
   userId: String!
@@ -366,7 +366,7 @@ type Query {
   checkDuplicateEmail(email: String!): JSON
 
   """ Posts selected for homepage carousel """
-  featuredPosts(approved: Boolean, deleted: Boolean, endDateRange: String, friendsOnly: Boolean, TagId: String, interactions: Boolean, limit: Int, offset: Int, searchKey: String, sortOrder: String, startDateRange: String, userId: String): Posts
+  featuredPosts(approved: Boolean, deleted: Boolean, endDateRange: String, friendsOnly: Boolean, tagId: String, interactions: Boolean, limit: Int, offset: Int, searchKey: String, sortOrder: String, startDateRange: String, userId: String): Posts
 
   """ Get users reported as bots (admin only) """
   getBotReportedUsers(limit: Int, sortBy: String): [User]
@@ -396,10 +396,10 @@ type Query {
   getUserReputation(userId: String!): UserReputation
 
   """ Get a specific Tag by ID """
-  Tag(TagId: String!): Tag
+  tag(tagId: String!): Tag
 
   """ Get all Tags """
-  Tags(created: String, key: String, limit: Int, title: String): [Tag]
+  tags(created: String, key: String, limit: Int, title: String): [Tag]
 
   """ This will query the message Reactions"""
   messageReactions(messageId: String!): [Reaction]
@@ -423,7 +423,7 @@ type Query {
   postMessageRoom(postId: String!): MessageRoom
 
   """ This will query the list of posts """
-  posts(approved: Boolean, deleted: Boolean, endDateRange: String, friendsOnly: Boolean, TagId: String, interactions: Boolean, limit: Int, offset: Int, searchKey: String, sortOrder: String, startDateRange: String, userId: String): Posts
+  posts(approved: Boolean, deleted: Boolean, endDateRange: String, friendsOnly: Boolean, tagId: String, interactions: Boolean, limit: Int, offset: Int, searchKey: String, sortOrder: String, startDateRange: String, userId: String): Posts
 
   """ Search content by text """
   searchContent(text: String!): [Content]
