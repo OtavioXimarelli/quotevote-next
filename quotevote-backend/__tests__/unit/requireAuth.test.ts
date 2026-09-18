@@ -40,7 +40,7 @@ describe('requireAuth', () => {
     });
 
     it('should return false for "tag" query', () => {
-      const query = 'query { tag(groupId: "123") { id } }';
+      const query = 'query { tag(tagId: "123") { id } }';
       expect(requireAuth(query)).toBe(false);
     });
 

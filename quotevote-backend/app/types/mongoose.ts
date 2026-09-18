@@ -61,6 +61,7 @@ export interface PostDocument
   _id: Types.ObjectId;
   userId: Types.ObjectId;
   tagId: Types.ObjectId;
+  groupId: Types.ObjectId;
   dayPoints: number;
   pointTimestamp: Date;
 }

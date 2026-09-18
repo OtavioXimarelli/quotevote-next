@@ -9,7 +9,7 @@ describe('Post Schema', () => {
       const doc = new Post();
       const errors = getValidationErrors(doc);
       expect(errors?.userId).toBeDefined();
-      expect(errors?.tagId).toBeDefined();
+      expect(errors?.groupId).toBeDefined();
       expect(errors?.title).toBeDefined();
       expect(errors?.text).toBeDefined();
     });

@@ -3,7 +3,7 @@
 model Post {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
   userId         String   @db.ObjectId
-  tagId          String   @db.ObjectId
+  tagId          String   @map("groupId") @db.ObjectId
   title          String
   text           String
   url            String?
