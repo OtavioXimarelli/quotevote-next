@@ -325,7 +325,7 @@ export interface MutationResolvers {
     { requestUserAccessInput: Common.RequestUserAccessInput }
   >;
   reportUser: ResolverFn<MutationResult, unknown, { reportUserInput: Common.ReportUserInput }>;
-  reportBot: ResolverFn<boolean, unknown, { userId: string; reporterId: string }>;
+  reportBot: ResolverFn<MutationResult, unknown, { userId: string; reporterId: string }>;
 
   // Email mutations
   sendPasswordResetEmail: ResolverFn<boolean, unknown, { email: string }>;

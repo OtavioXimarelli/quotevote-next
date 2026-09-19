@@ -213,4 +213,83 @@ export const postsResolver = {
       };
     },
   },
+  Mutation: {
+    reportPost: async (
+      _parent: unknown,
+      args: { postId: string; userId: string },
+      context: GraphQLContext
+    ): Promise<Common.Post> => {
+      if (!context?.user?._id) {
+        throw new GraphQLError('Authentication required', {
+          extensions: { code: 'UNAUTHENTICATED' },
+        });
+      }
+
+      if (!args.postId || !args.userId) {
+        throw new GraphQLError('Post ID and User ID are required', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      if (!isObjectId(args.postId) || !isObjectId(args.userId)) {
+        throw new GraphQLError('Invalid ID format', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      const actorId = context.user._id.toString();
+      if (actorId !== args.userId) {
+        throw new GraphQLError('Not authorized to report on behalf of another user', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      const post = await context.prisma.post.findUnique({
+        where: { id: args.postId },
+        select: { userId: true, deleted: true },
+      });
+      if (!post || post.deleted) {
+        throw new GraphQLError('Post not found', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      if (post.userId === args.userId) {
+        throw new GraphQLError('Cannot report your own post', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // The NOT filter makes the update its own dedupe, so concurrent requests
+      // from the same user can't double count `reported`.
+      const { count } = await context.prisma.post.updateMany({
+        where: { id: args.postId, NOT: { reportedBy: { has: args.userId } } },
+        data: {
+          reportedBy: { push: args.userId },
+          reported: { increment: 1 },
+        },
+      });
+      if (count === 0) {
+        const latest = await context.prisma.post.findUnique({
+          where: { id: args.postId },
+          select: { reportedBy: true },
+        });
+        if (latest?.reportedBy?.includes(args.userId)) {
+          throw new GraphQLError('You have already reported this post', {
+            extensions: { code: 'BAD_USER_INPUT' },
+          });
+        }
+        throw new GraphQLError('Post not found', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      const updatedPost = await context.prisma.post.findUniqueOrThrow({
+        where: { id: args.postId },
+        select: POST_RECORD_SELECT,
+      });
+      const [entity] = await attachPostCreators(context.prisma, [updatedPost]);
+      return entity;
+    },
+  },
 };

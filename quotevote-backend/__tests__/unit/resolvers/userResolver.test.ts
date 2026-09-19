@@ -15,6 +15,10 @@ function mockContext(overrides: Partial<GraphQLContext['user']> = {}): GraphQLCo
         findUnique: jest.fn(),
         update: jest.fn(),
       },
+      botReport: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
     } as unknown as GraphQLContext['prisma'],
     user: {
       _id: actorId,
@@ -283,6 +287,240 @@ describe('userResolver', () => {
           mockContext()
         )
       ).rejects.toThrow(/avatarQualities/);
+    });
+  });
+
+  describe('Mutation.reportBot', () => {
+    const validUserId = otherId;
+    const validReporterId = actorId;
+
+    it('throws UNAUTHENTICATED GraphQLError when user is not authenticated', async () => {
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: validReporterId },
+          { ...mockContext(), user: null }
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Authentication required',
+          extensions: expect.objectContaining({ code: 'UNAUTHENTICATED' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when userId or reporterId is missing', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: '', reporterId: validReporterId },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'User ID and Reporter ID are required',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: '' },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'User ID and Reporter ID are required',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when userId or reporterId has invalid ObjectId format', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: 'invalid-id', reporterId: validReporterId },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Invalid ID format',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: 'invalid-id' },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Invalid ID format',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws FORBIDDEN GraphQLError when reporting on behalf of another user', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: otherId },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Not authorized to report on behalf of another user',
+          extensions: expect.objectContaining({ code: 'FORBIDDEN' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when user attempts to report themself', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: actorId, reporterId: actorId },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Cannot report yourself as a bot',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws NOT_FOUND GraphQLError when target user does not exist', async () => {
+      const ctx = mockContext();
+      (ctx.prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: validReporterId },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'User not found',
+          extensions: expect.objectContaining({ code: 'NOT_FOUND' }),
+        })
+      );
+
+      expect(ctx.prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: validUserId },
+        select: { id: true },
+      });
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when user has already reported this target', async () => {
+      const ctx = mockContext();
+      (ctx.prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: validUserId });
+      (ctx.prisma.botReport.findFirst as jest.Mock).mockResolvedValue({ id: 'report-id-123' });
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: validReporterId },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'You have already reported this user as a bot',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when duplicate report race occurs (P2002)', async () => {
+      const ctx = mockContext();
+      (ctx.prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: validUserId });
+      (ctx.prisma.botReport.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const p2002Error = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6.0.0',
+      });
+      (ctx.prisma.botReport.create as jest.Mock).mockRejectedValue(p2002Error);
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: validReporterId },
+          ctx
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'You have already reported this user as a bot',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('re-throws unexpected database errors', async () => {
+      const ctx = mockContext();
+      (ctx.prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: validUserId });
+      (ctx.prisma.botReport.findFirst as jest.Mock).mockResolvedValue(null);
+      (ctx.prisma.botReport.create as jest.Mock).mockRejectedValue(new Error('DB failure'));
+
+      await expect(
+        userResolver.Mutation.reportBot(
+          null,
+          { userId: validUserId, reporterId: validReporterId },
+          ctx
+        )
+      ).rejects.toThrow('DB failure');
+    });
+
+    it('successfully reports bot, updates target user, and returns { code, message }', async () => {
+      const ctx = mockContext();
+      (ctx.prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: validUserId });
+      (ctx.prisma.botReport.findFirst as jest.Mock).mockResolvedValue(null);
+      (ctx.prisma.botReport.create as jest.Mock).mockResolvedValue({
+        id: 'new-report-id',
+        reporterId: validReporterId,
+        userId: validUserId,
+      });
+      (ctx.prisma.user.update as jest.Mock).mockResolvedValue({ id: validUserId });
+
+      const result = await userResolver.Mutation.reportBot(
+        null,
+        { userId: validUserId, reporterId: validReporterId },
+        ctx
+      );
+
+      expect(ctx.prisma.botReport.create).toHaveBeenCalledWith({
+        data: {
+          reporterId: validReporterId,
+          userId: validUserId,
+        },
+      });
+
+      expect(ctx.prisma.user.update).toHaveBeenCalledWith({
+        where: { id: validUserId },
+        data: {
+          botReports: { increment: 1 },
+          lastBotReportDate: expect.any(Date),
+        },
+      });
+
+      expect(result).toEqual({
+        code: 'SUCCESS',
+        message: 'Bot report submitted successfully',
+      });
     });
   });
 });
