@@ -129,6 +129,7 @@ export const userResolver = {
           const adminUpdated = await context.prisma.user.update({
             where: { id: targetId },
             data: { contributorBadge: Boolean(input.contributorBadge) },
+            select: PUBLIC_USER_SELECT,
           });
           return toPublicUser(adminUpdated as PrismaUserRecord);
         } catch (err) {
@@ -263,6 +264,7 @@ export const userResolver = {
         const updated = await context.prisma.user.update({
           where: { id: targetId },
           data: updates,
+          select: PUBLIC_USER_SELECT,
         });
         return toPublicUser(updated as PrismaUserRecord);
       } catch (err) {
@@ -324,6 +326,7 @@ export const userResolver = {
         const updated = await context.prisma.user.update({
           where: { id: targetId },
           data: { avatar: args.avatarQualities as Prisma.InputJsonValue },
+          select: PUBLIC_USER_SELECT,
         });
         return toPublicUser(updated as PrismaUserRecord);
       } catch (err) {

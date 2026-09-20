@@ -422,7 +422,20 @@ describe('Authentication Utils', () => {
                 id: '123', email: 'test@example.com', username: 'test', accountStatus: 'active', isAdmin: false, password: 'hashed'
             });
             await auth.addCreatorToUser({ username: 'test@example.com', password: 'p', requirePassword: true }, res as Response, false);
-            expect(prisma.user.findFirst).toHaveBeenCalledWith({ where: { email: 'test@example.com' } });
+            expect(prisma.user.findFirst).toHaveBeenCalledWith({ 
+                where: { email: 'test@example.com' },
+                select: {
+                    id: true,
+                    password: true,
+                    email: true,
+                    username: true,
+                    isAdmin: true,
+                    accountStatus: true,
+                    name: true,
+                    avatar: true,
+                    bio: true,
+                }
+            });
         });
 
         it('should handle missing password when required in addCreatorToUser', async () => {
@@ -443,7 +456,20 @@ describe('Authentication Utils', () => {
                 id: '123', email: 'e', username: 'u', accountStatus: 'active', isAdmin: false, password: 'hashed'
             });
             await auth.addCreatorToUser({ username: 'u', requirePassword: false }, res as Response, false);
-            expect(prisma.user.findFirst).toHaveBeenCalledWith({ where: { username: 'u' } });
+            expect(prisma.user.findFirst).toHaveBeenCalledWith({
+                where: { username: 'u' },
+                select: {
+                    id: true,
+                    password: true,
+                    email: true,
+                    username: true,
+                    isAdmin: true,
+                    accountStatus: true,
+                    name: true,
+                    avatar: true,
+                    bio: true,
+                }
+            });
             expect(json).toHaveBeenCalledWith(expect.objectContaining({ accessToken: 'token' }));
         });
     });

@@ -111,7 +111,6 @@ export function toPublicUser(u: PrismaUserRecord): Common.User {
     website: u.website ?? undefined,
     companyName: u.companyName ?? undefined,
     plan: u.plan ?? undefined,
-    stripeCustomerId: u.stripeCustomerId ?? undefined,
     _wallet: toStringOrNull(u.wallet),
     _votesId: toStringOrNull(u.votesId),
     favorited: Array.isArray(u.favorited) ? u.favorited : undefined,

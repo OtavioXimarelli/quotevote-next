@@ -123,6 +123,19 @@ describe('userResolver', () => {
       expect(ctx.prisma.user.update).toHaveBeenCalledWith({
         where: { id: actorId },
         data: { bio: 'Thoughtful dialogue' },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          avatar: true,
+          bio: true,
+          contributorBadge: true,
+          upvotes: true,
+          downvotes: true,
+          followingIds: true,
+          followerIds: true,
+          reputation: true,
+        },
       });
       expect(result.bio).toBe('Thoughtful dialogue');
     });
@@ -166,6 +179,19 @@ describe('userResolver', () => {
       expect(ctx.prisma.user.update).toHaveBeenCalledWith({
         where: { id: otherId },
         data: { contributorBadge: true },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          avatar: true,
+          bio: true,
+          contributorBadge: true,
+          upvotes: true,
+          downvotes: true,
+          followingIds: true,
+          followerIds: true,
+          reputation: true,
+        },
       });
       expect(result.contributorBadge).toBe(true);
     });
@@ -222,6 +248,19 @@ describe('userResolver', () => {
       expect(ctx.prisma.user.update).toHaveBeenCalledWith({
         where: { id: actorId },
         data: { avatar: avatarQualities },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          avatar: true,
+          bio: true,
+          contributorBadge: true,
+          upvotes: true,
+          downvotes: true,
+          followingIds: true,
+          followerIds: true,
+          reputation: true,
+        },
       });
       expect(result.avatar).toEqual(avatarQualities);
     });

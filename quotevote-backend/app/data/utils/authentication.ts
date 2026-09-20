@@ -96,7 +96,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         }
 
         // Check if user already exists
-        const existingUser = await prisma.user.findFirst({ where: { username: req.body.username } });
+        const existingUser = await prisma.user.findFirst({ 
+            where: { username: req.body.username },
+            select: { id: true, username: true }
+        });
         if (existingUser) {
             res.status(409).json({
                 error_message: `Username ${existingUser.username} already exists!`,
@@ -117,6 +120,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
                 password: hashedPassword,
                 accountStatus: status === 'disabled' ? 'disabled' : 'active',
             },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                username: true,
+            }
         });
 
         res.status(201).json({
@@ -175,6 +184,17 @@ export const addCreatorToUser = async (
     const isEmail = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(username);
     const user = await prisma.user.findFirst({
         where: isEmail ? { email: username } : { username },
+        select: {
+            id: true,
+            password: true,
+            email: true,
+            username: true,
+            isAdmin: true,
+            accountStatus: true,
+            name: true,
+            avatar: true,
+            bio: true,
+        },
     });
 
     if (!user) {
@@ -315,7 +335,16 @@ export const refresh = async (req: Request, res: Response): Promise<Response | v
             return res.status(401).json({ message: 'Invalid refresh token type.' });
         }
 
-        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                isAdmin: true,
+                accountStatus: true,
+            }
+        });
         if (!user || user.accountStatus === 'disabled') {
             return res.status(401).json({ message: 'User not found or account disabled.' });
         }
