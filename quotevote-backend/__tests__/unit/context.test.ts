@@ -162,6 +162,19 @@ describe('GraphQL Context Factory (createHttpContext)', () => {
       expect(auth.verifyToken).toHaveBeenCalledWith('valid-jwt-token');
       expect(defaultPrisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: 'user-123' },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          name: true,
+          avatar: true,
+          bio: true,
+          isAdmin: true,
+          accountStatus: true,
+          followingIds: true,
+          followerIds: true,
+          reputation: true,
+        },
       });
       expect(context.user).toBeDefined();
       expect(context.user?._id).toBe('user-123');

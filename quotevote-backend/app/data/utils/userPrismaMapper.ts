@@ -101,10 +101,11 @@ function toStringArray(value: unknown): string[] {
  */
 export function toPublicUser(u: PrismaUserRecord): Common.User {
   return {
-    ...u,
     _id: u.id,
     name: u.name ?? undefined,
-    password: u.password ?? undefined,
+    email: u.email,
+    username: u.username,
+    avatar: (u.avatar as string | Record<string, unknown> | undefined) ?? undefined,
     bio: u.bio ?? undefined,
     location: u.location ?? undefined,
     website: u.website ?? undefined,
@@ -121,6 +122,10 @@ export function toPublicUser(u: PrismaUserRecord): Common.User {
     _followingId: toStringArray(u.followingIds),
     _followersId: toStringArray(u.followerIds),
     blockedUserIds: toStringArray(u.blockedUserIds),
+    upvotes: u.upvotes ?? 0,
+    downvotes: u.downvotes ?? 0,
+    accountStatus: u.accountStatus ?? 'active',
+    botReports: u.botReports ?? 0,
     lastBotReportDate: u.lastBotReportDate ?? undefined,
     lastLogin: u.lastLogin ?? undefined,
     joined: u.joined ?? new Date(),
@@ -146,5 +151,5 @@ export function toPublicUser(u: PrismaUserRecord): Common.User {
           lastCalculated: u.reputation.lastCalculated ?? new Date(),
         }
       : undefined,
-  } as Common.User;
+  };
 }

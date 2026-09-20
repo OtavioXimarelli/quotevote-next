@@ -23,11 +23,9 @@ jest.mock('~/data/utils/logger', () => ({
 jest.mock('~/lib/prisma', () => ({
     prisma: {
         user: {
-            findOne: jest.fn(),
             findFirst: jest.fn(),
             create: jest.fn(),
             findUnique: jest.fn(),
-            findOneAndUpdate: jest.fn(),
         },
     },
 }));

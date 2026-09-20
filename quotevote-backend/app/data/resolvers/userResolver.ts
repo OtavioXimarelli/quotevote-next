@@ -15,7 +15,6 @@ type UpdateUserInput = {
   avatar?: string | null;
   bio?: string | null;
   contributorBadge?: boolean | null;
-  themePreference?: string | null;
 };
 
 /**

@@ -55,8 +55,20 @@ export const createGuestUser = async (req: Request, res: Response): Promise<void
                 email: `${randomUser}@gmail.com`,
                 password: hashedPassword,
             },
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                email: true,
+            },
         });
-        res.status(201).json(newUser);
+
+        res.status(201).json({
+            _id: newUser.id,
+            name: newUser.name,
+            username: newUser.username,
+            email: newUser.email,
+        });
     } catch (err) {
         logger.error('createGuestUser error', { error: err instanceof Error ? err.message : String(err) });
         res.status(500).json({ message: 'Internal server error while creating guest user' });

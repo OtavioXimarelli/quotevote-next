@@ -66,7 +66,20 @@ export async function createHttpContext(
       const decoded = await auth.verifyToken(token);
       if (decoded && typeof decoded === 'object' && decoded.userId) {
         const prismaUser = await prisma.user.findUnique({
-          where: { id: decoded.userId }
+          where: { id: decoded.userId },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            name: true,
+            avatar: true,
+            bio: true,
+            isAdmin: true,
+            accountStatus: true,
+            followingIds: true,
+            followerIds: true,
+            reputation: true,
+          },
         });
         if (prismaUser) {
           user = toPublicUser(prismaUser as PrismaUserRecord);
