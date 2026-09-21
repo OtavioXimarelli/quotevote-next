@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 import { GraphQLError } from 'graphql';
 import type { Request, Response } from 'express';
 import { logger } from './logger';
-import User from '../models/User';
+import { prisma } from '~/lib/prisma';
 import type { JWTPayload } from '../../types/express';
 
 
@@ -46,15 +46,29 @@ export const createGuestUser = async (req: Request, res: Response): Promise<void
 
     try {
         const randomUser = crypto.randomBytes(20).toString('hex');
-        // const hashPassword = await generateHashPassword(randomUser); // Unused
+        const hashedPassword = await generateHashPassword(randomUser);
 
-        const newUser = await User.create({
-            name: 'guest',
-            username: randomUser,
-            email: `${randomUser}@gmail.com`,
-            password: randomUser,
+        const newUser = await prisma.user.create({
+            data: {
+                name: 'guest',
+                username: randomUser,
+                email: `${randomUser}@gmail.com`,
+                password: hashedPassword,
+            },
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                email: true,
+            },
         });
-        res.status(201).json(newUser);
+
+        res.status(201).json({
+            _id: newUser.id,
+            name: newUser.name,
+            username: newUser.username,
+            email: newUser.email,
+        });
     } catch (err) {
         logger.error('createGuestUser error', { error: err instanceof Error ? err.message : String(err) });
         res.status(500).json({ message: 'Internal server error while creating guest user' });
@@ -82,7 +96,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         }
 
         // Check if user already exists
-        const existingUser = await User.findOne({ username: req.body.username });
+        const existingUser = await prisma.user.findFirst({ 
+            where: { username: req.body.username },
+            select: { id: true, username: true }
+        });
         if (existingUser) {
             res.status(409).json({
                 error_message: `Username ${existingUser.username} already exists!`,
@@ -92,18 +109,29 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
         const { name, email, username, password, status } = req.body;
 
-        const user = await User.create({
-            name,
-            email,
-            username,
-            password,
-            accountStatus: status === 'disabled' ? 'disabled' : 'active',
+        // Hash password explicitly (Prisma has no hooks)
+        const hashedPassword = await generateHashPassword(password);
+
+        const user = await prisma.user.create({
+            data: {
+                name,
+                email,
+                username,
+                password: hashedPassword,
+                accountStatus: status === 'disabled' ? 'disabled' : 'active',
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                username: true,
+            }
         });
 
         res.status(201).json({
             message: 'User registered successfully',
             user: {
-                _id: user._id,
+                _id: user.id,
                 name: user.name,
                 email: user.email,
                 username: user.username,
@@ -154,7 +182,20 @@ export const addCreatorToUser = async (
     tokenOnly: boolean = false
 ): Promise<Response | string | void> => {
     const isEmail = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(username);
-    const user = await User.findOne(isEmail ? { email: username } : { username });
+    const user = await prisma.user.findFirst({
+        where: isEmail ? { email: username } : { username },
+        select: {
+            id: true,
+            password: true,
+            email: true,
+            username: true,
+            isAdmin: true,
+            accountStatus: true,
+            name: true,
+            avatar: true,
+            bio: true,
+        },
+    });
 
     if (!user) {
         return invalidUserPassword(res);
@@ -171,15 +212,16 @@ export const addCreatorToUser = async (
 
     if (requirePassword) {
         if (!password) return invalidUserPassword(res);
-        const isMatch = await user.comparePassword(password);
+        // Prisma doesn't have instance methods, use bcrypt.compare directly
+        const isMatch = await bcrypt.compare(password, user.password || '');
         if (!isMatch) return invalidUserPassword(res);
     }
 
     const payload: JWTPayload = {
         email: user.email,
         username: user.username,
-        userId: user._id.toString(),
-        admin: user.admin,
+        userId: user.id,
+        admin: user.isAdmin,
     };
 
     const accessToken = jwt.sign(payload, safeSecret, { expiresIn });
@@ -200,11 +242,11 @@ export const addCreatorToUser = async (
         accessToken,
         refreshToken,
         user: {
-            _id: user._id,
+            _id: user.id,
             name: user.name,
             username: user.username,
             email: user.email,
-            admin: user.admin,
+            admin: user.isAdmin,
             accountStatus: user.accountStatus,
             avatar: user.avatar ?? null,
             bio: user.bio ?? '',
@@ -293,7 +335,16 @@ export const refresh = async (req: Request, res: Response): Promise<Response | v
             return res.status(401).json({ message: 'Invalid refresh token type.' });
         }
 
-        const user = await User.findById(decoded.userId);
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                isAdmin: true,
+                accountStatus: true,
+            }
+        });
         if (!user || user.accountStatus === 'disabled') {
             return res.status(401).json({ message: 'User not found or account disabled.' });
         }
@@ -301,8 +352,8 @@ export const refresh = async (req: Request, res: Response): Promise<Response | v
         const payload: JWTPayload = {
             email: user.email,
             username: user.username,
-            userId: user._id.toString(),
-            admin: user.admin,
+            userId: user.id,
+            admin: user.isAdmin,
         };
 
         const accessToken = jwt.sign(payload, safeSecret, { expiresIn: '15m' });
