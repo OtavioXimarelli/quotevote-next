@@ -26,11 +26,11 @@ describe('postsResolver', () => {
       expect(Post.find).not.toHaveBeenCalled();
     });
 
-    it('throws BAD_USER_INPUT GraphQLError when invalid groupId is provided', async () => {
+    it('throws BAD_USER_INPUT GraphQLError when invalid tagId is provided', async () => {
       await expect(
-        postsResolver.Query.posts(null, { groupId: 'invalid-id' })
+        postsResolver.Query.posts(null, { tagId: 'invalid-id' })
       ).rejects.toThrow(
-        new GraphQLError('Invalid groupId format', {
+        new GraphQLError('Invalid tagId format', {
           extensions: { code: 'BAD_USER_INPUT' },
         })
       );
