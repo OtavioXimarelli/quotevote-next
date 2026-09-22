@@ -124,7 +124,7 @@ export const createGraphQLVariables = (params: GraphQLVariableParams): GraphQLVa
     interactions = false,
     userId,
     sortOrder,
-    tagId,
+    groupId,
     approved,
   } = params
 
@@ -140,7 +140,7 @@ export const createGraphQLVariables = (params: GraphQLVariableParams): GraphQLVa
     interactions,
     userId,
     sortOrder,
-    tagId,
+    groupId,
     approved,
   }
 }

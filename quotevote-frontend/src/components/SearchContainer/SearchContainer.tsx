@@ -80,7 +80,7 @@ function PostsTab({
               comments={post.comments ?? []}
               quotes={post.quotes ?? []}
               messageRoom={post.messageRoom ?? undefined}
-              tagId={post.tagId}
+              groupId={post.groupId}
             />
           ))}
         </div>
@@ -135,7 +135,7 @@ function PostsTab({
           comments={post.comments ?? []}
           quotes={post.quotes ?? []}
           messageRoom={post.messageRoom ?? undefined}
-          tagId={post.tagId}
+          groupId={post.groupId}
           searchKey={searchKey}
         />
       ))}

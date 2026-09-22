@@ -56,7 +56,7 @@ export interface PostsQueryVariables {
   interactions?: boolean | null
   userId?: string | null
   sortOrder?: string | null
-  tagId?: string | null
+  groupId?: string | null
   approved?: boolean | null
 }
 

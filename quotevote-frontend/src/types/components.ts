@@ -650,7 +650,7 @@ export interface PasswordResetProps {
 }
 
 // SubmitPost Component Types
-export interface Tag {
+export interface Group {
   _id: string;
   title: string;
   description?: string;
@@ -673,7 +673,7 @@ export interface SubmitPostFormProps {
   /**
    * Array of available tags for selection
    */
-  options?: Tag[];
+  options?: Group[];
   /**
    * Current user object
    */
@@ -713,7 +713,7 @@ export interface SubmitPostAlertProps {
 export interface SubmitPostFormValues {
   title: string;
   text: string;
-  tag: Tag | { title: string } | string;
+  tag: Group | { title: string } | string;
 }
 
 // Quotes Component Types

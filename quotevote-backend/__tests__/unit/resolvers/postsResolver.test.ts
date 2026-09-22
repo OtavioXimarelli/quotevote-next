@@ -65,7 +65,7 @@ describe('postsResolver', () => {
       const mockPost = {
         _id: new mongoose.Types.ObjectId(),
         userId: mockUserId,
-        tagId: new mongoose.Types.ObjectId(),
+        groupId: new mongoose.Types.ObjectId(),
         title: 'Title',
         text: 'Text',
         votedBy: [],

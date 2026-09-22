@@ -103,7 +103,7 @@ async function buildPostFilter(
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
-    filter.tagId = new mongoose.Types.ObjectId(args.tagId);
+    filter.groupId = new mongoose.Types.ObjectId(args.tagId);
   }
 
   // ── Approved filter ───────────────────────────────────────────────────
@@ -175,7 +175,7 @@ export const postsResolver = {
         ...post,
         _id: post._id.toString(),
         userId: post.userId.toString(),
-        tagId: post.tagId.toString(),
+        tagId: post.groupId.toString(),
         creator: creatorMap.get(post.userId.toString()) ?? null,
         votedBy: Array.isArray(post.votedBy) ? post.votedBy : [],
       }));

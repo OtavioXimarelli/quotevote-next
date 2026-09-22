@@ -9,7 +9,7 @@ import { Link2, Bookmark, Share2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getDomain, toAppPostUrl, toAbsolutePostUrl } from '@/lib/utils/sanitizeUrl'
 import { useAppStore } from '@/store'
-import { GET_TAG } from '@/graphql/queries'
+import { GET_GROUP } from '@/graphql/queries'
 import { UPDATE_POST_BOOKMARK, APPROVE_POST, REJECT_POST } from '@/graphql/mutations'
 import { toast } from 'sonner'
 import getTopPostsVoteHighlights from '@/lib/utils/getTopPostsVoteHighlights'
@@ -59,7 +59,7 @@ function PostCardComponent({
   comments = [],
   quotes = [],
   messageRoom,
-  tagId,
+  groupId,
   citationUrl,
   attribution,
   searchKey,
@@ -216,9 +216,9 @@ function PostCardComponent({
     quotes.length +
     messages.length
 
-  const { data: tagData } = useQuery<{ tag?: { _id: string; title: string } }>(GET_TAG, {
-    variables: { tagId: tagId || '' },
-    skip: !tagId,
+  const { data: groupData } = useQuery<{ group?: { _id: string; title: string } }>(GET_GROUP, {
+    variables: { groupId: groupId || '' },
+    skip: !groupId,
     errorPolicy: 'all',
     fetchPolicy: 'cache-first',
   })
@@ -381,16 +381,16 @@ function PostCardComponent({
           <HighlightText text={title || 'Untitled'} highlightTerms={searchKey || ''} />
         </h3>
 
-        {(tagId && tagData?.tag) || citationUrl || (compact && attribution) ? (
+        {(groupId && groupData?.group) || citationUrl || (compact && attribution) ? (
           <div
             className={cn(
               'flex items-center flex-wrap gap-1.5',
               compact ? 'justify-center mb-1' : 'mb-3'
             )}
           >
-            {tagId && tagData?.tag && (
+            {groupId && groupData?.group && (
               <span className="text-[10px] font-semibold text-[#52b274] bg-[rgba(82,178,116,0.1)] border border-[rgba(82,178,116,0.2)] px-2 py-0.5 rounded-full uppercase tracking-wide">
-                #{tagData.tag.title}
+                #{groupData.group.title}
               </span>
             )}
             {citationUrl && (

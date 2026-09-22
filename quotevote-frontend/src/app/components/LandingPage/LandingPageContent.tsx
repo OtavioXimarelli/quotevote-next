@@ -45,7 +45,7 @@ interface ContentResult {
   title: string;
   text?: string;
   url?: string;
-  tagId?: string;
+  groupId?: string;
   creator?: { _id: string; name?: string; username?: string };
 }
 
