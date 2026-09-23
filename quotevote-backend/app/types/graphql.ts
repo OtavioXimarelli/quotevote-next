@@ -186,6 +186,9 @@ export interface QueryResolvers {
   buddyList: ResolverFn<Common.Roster[]>;
   roster: ResolverFn<RosterQueryResult>;
 
+  // Typing queries
+  getTypingUsers: ResolverFn<Common.Typing[], unknown, { messageRoomId: string }>;
+
   // Action reactions
   actionReactions: ResolverFn<Common.Reaction[], unknown, { actionId: string }>;
 
@@ -305,7 +308,11 @@ export interface MutationResolvers {
   >;
 
   // Typing mutations
-  updateTyping: ResolverFn<TypingResult, unknown, { typing: Common.TypingInput }>;
+  updateTyping: ResolverFn<
+    TypingResult,
+    unknown,
+    { typing: { messageRoomId: string; isTyping: boolean } }
+  >;
 
   // Notification mutations
   removeNotification: ResolverFn<Common.Notification, unknown, { notificationId: string }>;

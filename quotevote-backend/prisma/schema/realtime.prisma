@@ -13,6 +13,8 @@ model Presence {
   userId        String         @unique @db.ObjectId
   status        PresenceStatus @default(offline)
   statusMessage String?
+  preferredStatus        PresenceStatus?
+  preferredStatusMessage String?
   lastHeartbeat DateTime?      @default(now())
   lastSeen      DateTime?      @default(now())
   createdAt     DateTime       @default(now())

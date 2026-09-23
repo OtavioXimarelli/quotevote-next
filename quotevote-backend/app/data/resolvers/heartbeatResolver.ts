@@ -1,5 +1,4 @@
 import { GraphQLError } from 'graphql';
-import Presence from '../models/Presence';
 import { pubsub } from '../utils/pubsub';
 import { SUBSCRIPTION_EVENTS } from '../../types/graphql';
 import type { GraphQLContext } from '~/types/graphql';
@@ -23,16 +22,16 @@ type UpdatePresenceArgs = {
 };
 
 function toPublicPresence(doc: {
-  _id: { toString(): string };
-  userId: { toString(): string };
+  id: string;
+  userId: string;
   status: Common.PresenceStatus;
   statusMessage?: string | null;
   lastHeartbeat?: Date | string | number;
   lastSeen?: Date | string | number | null;
 }): Common.Presence {
   return {
-    _id: doc._id.toString(),
-    userId: doc.userId.toString(),
+    _id: doc.id,
+    userId: doc.userId,
     status: doc.status,
     statusMessage: doc.statusMessage ?? undefined,
     lastHeartbeat: doc.lastHeartbeat,
@@ -59,7 +58,44 @@ export const heartbeatResolver = {
         });
       }
 
-      const presence = await Presence.updateHeartbeat(user._id.toString());
+      const userId = user._id.toString();
+      const now = new Date();
+      const existing = await context.prisma.presence.findUnique({ where: { userId } });
+
+      const presence = existing
+        ? await context.prisma.presence.update({
+            where: { userId },
+            data: {
+              lastHeartbeat: now,
+              lastSeen: now,
+              ...(existing.status === 'offline'
+                ? {
+                    status:
+                      existing.preferredStatus && existing.preferredStatus !== 'offline'
+                        ? existing.preferredStatus
+                        : 'online',
+                    ...(typeof existing.preferredStatusMessage === 'string'
+                      ? { statusMessage: existing.preferredStatusMessage }
+                      : {}),
+                  }
+                : {}),
+            },
+          })
+        : await context.prisma.presence.upsert({
+            where: { userId },
+            create: {
+              userId,
+              status: 'online',
+              preferredStatus: 'online',
+              preferredStatusMessage: '',
+              lastHeartbeat: now,
+              lastSeen: now,
+            },
+            update: {
+              lastHeartbeat: now,
+              lastSeen: now,
+            },
+          });
 
       return {
         success: true,
@@ -82,10 +118,9 @@ export const heartbeatResolver = {
 
       const status = args.presence?.status?.trim();
       if (!status || !ALLOWED_STATUSES.has(status as Common.PresenceStatus)) {
-        throw new GraphQLError(
-          'status must be one of: online, away, dnd, offline, invisible',
-          { extensions: { code: 'BAD_USER_INPUT' } }
-        );
+        throw new GraphQLError('status must be one of: online, away, dnd, offline, invisible', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
       }
 
       const rawMessage = args.presence.statusMessage ?? '';
@@ -95,27 +130,29 @@ export const heartbeatResolver = {
       const userId = context.user._id.toString();
       const now = new Date();
 
-      const preferredStatus = status === 'offline' ? 'online' : status;
-      const updated = await Presence.findOneAndUpdate(
-        { userId },
-        {
-          $set: {
-            status,
-            statusMessage,
-            preferredStatus,
-            preferredStatusMessage: statusMessage,
-            lastHeartbeat: now,
-            lastSeen: now,
-          },
+      const normalizedStatus = status as Common.PresenceStatus;
+      const preferredStatus: Common.PresenceStatus =
+        normalizedStatus === 'offline' ? 'online' : normalizedStatus;
+      const updated = await context.prisma.presence.upsert({
+        where: { userId },
+        create: {
+          userId,
+          status: normalizedStatus,
+          statusMessage,
+          preferredStatus,
+          preferredStatusMessage: statusMessage,
+          lastHeartbeat: now,
+          lastSeen: now,
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-
-      if (!updated) {
-        throw new GraphQLError('Failed to update presence', {
-          extensions: { code: 'INTERNAL_SERVER_ERROR' },
-        });
-      }
+        update: {
+          status: normalizedStatus,
+          statusMessage,
+          preferredStatus,
+          preferredStatusMessage: statusMessage,
+          lastHeartbeat: now,
+          lastSeen: now,
+        },
+      });
 
       await pubsub.publish(SUBSCRIPTION_EVENTS.PRESENCE_UPDATED, {
         presence: {
