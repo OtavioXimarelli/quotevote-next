@@ -35,12 +35,7 @@ import {
   DELETE_POST,
   DELETE_VOTE,
 } from "@/graphql/mutations";
-import {
-  GET_GROUP,
-  GET_POST,
-  GET_TOP_POSTS,
-  GET_USERS,
-} from "@/graphql/queries";
+import { GET_GROUP, GET_POST, GET_TOP_POSTS, GET_USERS } from "@/graphql/queries";
 import useGuestGuard from "@/hooks/useGuestGuard";
 import { POST_ACTION_PILL_CLASS } from "@/lib/constants/postActions";
 import { cn } from "@/lib/utils";
@@ -258,10 +253,7 @@ export default function Post({
     }
   };
 
-  const handleVoting = async (
-    obj: { type: VoteType; tags: VoteOption },
-    passage: SelectedText
-  ) => {
+  const handleVoting = async (obj: { type: VoteType; tags: VoteOption }, passage: SelectedText) => {
     if (!ensureAuth()) return;
     const userVote = getUserVote();
     try {

@@ -18,16 +18,6 @@ export type VoteType = "up" | "down";
 export type VoteOption = "#true" | "#agree" | "#like" | "#false" | "#disagree" | "#dislike";
 
 /**
- * Voted by entry structure
- */
-export interface VotedByEntry {
-  userId: string;
-  type: VoteType;
-  _id?: string;
-  [key: string]: unknown;
-}
-
-/**
  * Selected text structure from parser
  */
 export interface SelectedText extends ParsedSelection {

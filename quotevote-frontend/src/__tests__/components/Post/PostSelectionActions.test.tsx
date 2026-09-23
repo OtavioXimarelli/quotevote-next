@@ -63,7 +63,10 @@ jest.mock("@/components/VotingComponents/VotingBoard", () => ({
 jest.mock("@/components/VotingComponents/VotingPopup", () => ({
   __esModule: true,
   default: ({ onQuote, onVote, onDismiss, selectedText, userVote }: VotingPopupProps) => (
-    <div data-testid="popup-stub" data-user-vote={userVote ? `${userVote.type}:${userVote.tags}` : ""}>
+    <div
+      data-testid="popup-stub"
+      data-user-vote={userVote ? `${userVote.type}:${userVote.tags}` : ""}
+    >
       <button type="button" onClick={() => onQuote(selectedText)}>
         stub-quote
       </button>

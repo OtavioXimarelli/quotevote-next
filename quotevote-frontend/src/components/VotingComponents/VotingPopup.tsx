@@ -1,50 +1,52 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Check, Heart, HeartCrack, Quote, ThumbsDown, ThumbsUp, Vote, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import type {
-  SelectionPopupMode,
-  VoteResponseOption,
-  VotingPopupProps,
-} from '@/types/voting'
+import { useState } from "react";
+import { Check, Heart, HeartCrack, Quote, ThumbsDown, ThumbsUp, Vote, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { SelectionPopupMode, VoteResponseOption, VotingPopupProps } from "@/types/voting";
 
 // Rows follow the design: positive on the left, negative on the right.
 const VOTE_ROWS: [VoteResponseOption, VoteResponseOption][] = [
   [
-    { type: 'up', tags: '#agree', label: 'Agree', icon: ThumbsUp, testId: 'highlight-agree-button' },
     {
-      type: 'down',
-      tags: '#disagree',
-      label: 'Disagree',
+      type: "up",
+      tags: "#agree",
+      label: "Agree",
+      icon: ThumbsUp,
+      testId: "highlight-agree-button",
+    },
+    {
+      type: "down",
+      tags: "#disagree",
+      label: "Disagree",
       icon: ThumbsDown,
-      testId: 'highlight-disagree-button',
+      testId: "highlight-disagree-button",
     },
   ],
   [
-    { type: 'up', tags: '#true', label: 'True', icon: Check, testId: 'highlight-true-button' },
-    { type: 'down', tags: '#false', label: 'False', icon: X, testId: 'highlight-false-button' },
+    { type: "up", tags: "#true", label: "True", icon: Check, testId: "highlight-true-button" },
+    { type: "down", tags: "#false", label: "False", icon: X, testId: "highlight-false-button" },
   ],
   [
     {
-      type: 'up',
-      tags: '#like',
-      label: 'Like',
+      type: "up",
+      tags: "#like",
+      label: "Like",
       icon: Heart,
       filledIcon: true,
-      testId: 'highlight-like-button',
+      testId: "highlight-like-button",
     },
     {
-      type: 'down',
-      tags: '#dislike',
-      label: 'Dislike',
+      type: "down",
+      tags: "#dislike",
+      label: "Dislike",
       icon: HeartCrack,
-      testId: 'highlight-dislike-button',
+      testId: "highlight-dislike-button",
     },
   ],
-]
+];
 
-const VOTE_PANEL_ID = 'selection-popup-vote-options'
+const VOTE_PANEL_ID = "selection-popup-vote-options";
 
 /**
  * VotingPopup component
@@ -59,33 +61,33 @@ export default function VotingPopup({
   onDeleteVote,
   onDismiss,
 }: VotingPopupProps) {
-  const [mode, setMode] = useState<SelectionPopupMode | null>(null)
+  const [mode, setMode] = useState<SelectionPopupMode | null>(null);
 
-  const hasVoted = Boolean(userVote)
-  const voteLocked = hasVoted && !onDeleteVote
+  const hasVoted = Boolean(userVote);
+  const voteLocked = hasVoted && !onDeleteVote;
 
   const handleQuote = () => {
-    setMode('quote')
-    onQuote(selectedText)
-    onDismiss?.()
-  }
+    setMode("quote");
+    onQuote(selectedText);
+    onDismiss?.();
+  };
 
   const handleVoteMode = () => {
-    setMode((current) => (current === 'vote' ? null : 'vote'))
-  }
+    setMode((current) => (current === "vote" ? null : "vote"));
+  };
 
   const handleResponse = (option: VoteResponseOption, active: boolean) => {
-    if (voteLocked) return
+    if (voteLocked) return;
     if (active) {
-      onDeleteVote?.()
+      onDeleteVote?.();
     } else {
-      onVote({ type: option.type, tags: option.tags })
+      onVote({ type: option.type, tags: option.tags });
     }
-    onDismiss?.()
-  }
+    onDismiss?.();
+  };
 
   const isActiveVote = (option: VoteResponseOption) =>
-    userVote?.type === option.type && userVote?.tags === option.tags
+    userVote?.type === option.type && userVote?.tags === option.tags;
 
   return (
     <div
@@ -95,24 +97,24 @@ export default function VotingPopup({
       // Keep the text selection alive while pressing popup buttons with a mouse.
       onMouseDown={(event) => event.preventDefault()}
       className={cn(
-        'w-[min(20rem,calc(100vw-1.25rem))] rounded-2xl border border-border',
-        'bg-popover p-2 text-popover-foreground shadow-xl',
-        'animate-in fade-in-0 zoom-in-95'
+        "w-[min(20rem,calc(100vw-1.25rem))] rounded-2xl border border-border",
+        "bg-popover p-2 text-popover-foreground shadow-xl",
+        "animate-in fade-in-0 zoom-in-95"
       )}
     >
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           data-testid="highlight-quote-button"
-          aria-pressed={mode === 'quote'}
+          aria-pressed={mode === "quote"}
           onClick={handleQuote}
           className={cn(
-            'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border',
-            'text-sm font-medium transition-colors',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            mode === 'quote'
-              ? 'border-info bg-info/15 font-semibold'
-              : 'border-transparent bg-muted hover:bg-accent'
+            "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border",
+            "text-sm font-medium transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            mode === "quote"
+              ? "border-info bg-info/15 font-semibold"
+              : "border-transparent bg-muted hover:bg-accent"
           )}
         >
           <Quote className="size-5" aria-hidden="true" />
@@ -121,17 +123,17 @@ export default function VotingPopup({
         <button
           type="button"
           data-testid="highlight-vote-mode-button"
-          aria-pressed={mode === 'vote'}
-          aria-expanded={mode === 'vote'}
+          aria-pressed={mode === "vote"}
+          aria-expanded={mode === "vote"}
           aria-controls={VOTE_PANEL_ID}
           onClick={handleVoteMode}
           className={cn(
-            'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border',
-            'text-sm font-medium transition-colors',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            mode === 'vote'
-              ? 'border-info bg-info/15 font-semibold'
-              : 'border-transparent bg-muted hover:bg-accent'
+            "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border",
+            "text-sm font-medium transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            mode === "vote"
+              ? "border-info bg-info/15 font-semibold"
+              : "border-transparent bg-muted hover:bg-accent"
           )}
         >
           <Vote className="size-5" aria-hidden="true" />
@@ -139,7 +141,7 @@ export default function VotingPopup({
         </button>
       </div>
 
-      {mode === 'vote' && (
+      {mode === "vote" && (
         <div
           id={VOTE_PANEL_ID}
           data-testid="highlight-vote-options"
@@ -152,48 +154,50 @@ export default function VotingPopup({
           )}
           <div className="grid grid-cols-2 gap-2">
             {VOTE_ROWS.flat().map((option) => {
-              const active = isActiveVote(option)
-              const positive = option.type === 'up'
-              const Icon = option.icon
+              const active = isActiveVote(option);
+              const positive = option.type === "up";
+              const Icon = option.icon;
               return (
                 <button
                   key={option.tags}
                   type="button"
                   data-testid={option.testId}
                   aria-pressed={active}
-                  aria-label={active ? `${option.label} (your vote, press to remove)` : option.label}
+                  aria-label={
+                    active ? `${option.label} (your vote, press to remove)` : option.label
+                  }
                   disabled={voteLocked}
                   onClick={() => handleResponse(option, active)}
                   className={cn(
-                    'flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium',
-                    'text-foreground transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    'disabled:cursor-not-allowed disabled:opacity-50',
+                    "flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium",
+                    "text-foreground transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "disabled:cursor-not-allowed disabled:opacity-50",
                     positive
-                      ? 'bg-upvote/10 hover:bg-upvote/20'
-                      : 'bg-downvote/10 hover:bg-downvote/20',
+                      ? "bg-upvote/10 hover:bg-upvote/20"
+                      : "bg-downvote/10 hover:bg-downvote/20",
                     active
                       ? positive
-                        ? 'border-upvote bg-upvote/25 font-semibold'
-                        : 'border-downvote bg-downvote/25 font-semibold'
-                      : 'border-transparent'
+                        ? "border-upvote bg-upvote/25 font-semibold"
+                        : "border-downvote bg-downvote/25 font-semibold"
+                      : "border-transparent"
                   )}
                 >
                   <Icon
                     aria-hidden="true"
                     className={cn(
-                      'size-5 shrink-0',
-                      positive ? 'text-upvote' : 'text-downvote',
-                      option.filledIcon && 'fill-current'
+                      "size-5 shrink-0",
+                      positive ? "text-upvote" : "text-downvote",
+                      option.filledIcon && "fill-current"
                     )}
                   />
                   <span className="truncate">{option.label}</span>
                 </button>
-              )
+              );
             })}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
