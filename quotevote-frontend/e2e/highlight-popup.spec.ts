@@ -80,12 +80,12 @@ test.describe("E2E-HILITE-001: Highlight Action Popup", () => {
     await targetPostCard.click();
 
     // Confirm public post page loads successfully and post body text is visible
-    await expect(page).toHaveURL(/\/dashboard\/post\/.+\/.+\/.+/, { timeout: 30_000 });
+    await expect(page).toHaveURL(/\/post\/.+\/.+\/.+/, { timeout: 30_000 });
     const postBodyElement = page.getByTestId("post-detail-body");
     await expect(postBodyElement).toBeVisible({ timeout: 30_000 });
 
     const postUrl = page.url();
-    const postIdMatch = postUrl.match(/\/dashboard\/post\/[^/]+\/[^/]+\/([^/?#]+)/);
+    const postIdMatch = postUrl.match(/\/post\/[^/]+\/[^/]+\/([^/?#]+)/);
     if (!hasExistingPost && postIdMatch?.[1]) {
       createdPostId = postIdMatch[1];
     }
@@ -102,11 +102,26 @@ test.describe("E2E-HILITE-001: Highlight Action Popup", () => {
     const highlightPopup = page.getByTestId("highlight-popup");
     await expect(highlightPopup).toBeVisible({ timeout: 15_000 });
 
-    // Step 5: Confirm that the popup includes the expected passage-level actions
-    await expect(page.getByTestId("highlight-agree-button")).toBeVisible();
-    await expect(page.getByTestId("highlight-disagree-button")).toBeVisible();
-    await expect(page.getByTestId("highlight-comment-button")).toBeVisible();
-    await expect(page.getByTestId("highlight-quote-button")).toBeVisible();
+    // Step 5: Confirm that the popup offers Quote and Vote as its two primary actions (#529)
+    const quoteButton = page.getByTestId("highlight-quote-button");
+    const voteModeButton = page.getByTestId("highlight-vote-mode-button");
+    await expect(quoteButton).toBeVisible();
+    await expect(voteModeButton).toBeVisible();
+    await expect(page.getByTestId("highlight-comment-button")).toHaveCount(0);
+
+    // Choosing Vote reveals the paired Agree/Disagree, True/False, Like/Dislike responses
+    await voteModeButton.click();
+    await expect(voteModeButton).toHaveAttribute("aria-pressed", "true");
+    for (const testId of [
+      "highlight-agree-button",
+      "highlight-disagree-button",
+      "highlight-true-button",
+      "highlight-false-button",
+      "highlight-like-button",
+      "highlight-dislike-button",
+    ]) {
+      await expect(page.getByTestId(testId)).toBeVisible();
+    }
 
     // Check optional chat action if enabled
     const chatButton = page.getByTestId("highlight-chat-button");

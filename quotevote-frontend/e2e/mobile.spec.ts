@@ -13,7 +13,7 @@
  * Steps (delayed workflow):
  * 1. Select passage → native Selection contains text, toolbar hidden, retained mark absent
  * 2. First background tap → native cleared, retained mark + toolbar visible, clamped
- * 3. Actions interactive (Comment tap)
+ * 3. Actions interactive (Vote tap reveals the passage responses)
  * 4. Second background tap → toolbar/highlight dismissed, URL unchanged
  */
 import { test, expect } from "@playwright/test";
@@ -85,12 +85,12 @@ test.describe("E2E-MOB-005: Mobile Highlight Selection", () => {
     await expect(targetPostCard).toBeVisible({ timeout: 30_000 });
     await targetPostCard.click();
 
-    await expect(page).toHaveURL(/\/dashboard\/post\/.+\/.+\/.+/, { timeout: 30_000 });
+    await expect(page).toHaveURL(/\/post\/.+\/.+\/.+/, { timeout: 30_000 });
     const postBodyElement = page.getByTestId("post-detail-body");
     await expect(postBodyElement).toBeVisible({ timeout: 30_000 });
 
     const postUrl = page.url();
-    const postIdMatch = postUrl.match(/\/dashboard\/post\/[^/]+\/[^/]+\/([^/?#]+)/);
+    const postIdMatch = postUrl.match(/\/post\/[^/]+\/[^/]+\/([^/?#]+)/);
     if (!hasExistingPost && postIdMatch?.[1]) {
       createdPostId = postIdMatch[1];
     }
@@ -132,15 +132,15 @@ test.describe("E2E-MOB-005: Mobile Highlight Selection", () => {
       expect(popupBox.x + popupBox.width).toBeLessThanOrEqual(viewportSize.width);
     }
 
+    await expect(page.getByTestId("highlight-quote-button").first()).toBeVisible();
+    await expect(page.getByTestId("highlight-comment-button")).toHaveCount(0);
+
+    // Vote mode stays usable on touch and keeps the toolbar open
+    const voteModeButton = page.getByTestId("highlight-vote-mode-button").first();
+    await voteModeButton.tap();
+    await expect(highlightPopup).toBeVisible();
     await expect(page.getByTestId("highlight-agree-button").first()).toBeVisible();
     await expect(page.getByTestId("highlight-disagree-button").first()).toBeVisible();
-    await expect(page.getByTestId("highlight-comment-button").first()).toBeVisible();
-    await expect(page.getByTestId("highlight-quote-button").first()).toBeVisible();
-
-    // Comment input remains usable
-    const commentButton = page.getByTestId("highlight-comment-button").first();
-    await commentButton.tap();
-    await expect(highlightPopup).toBeVisible();
 
     // Step 3: Second background tap dismisses toolbar/highlight, URL unchanged
     const urlBeforeDismiss = page.url();
