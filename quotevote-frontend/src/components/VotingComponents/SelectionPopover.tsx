@@ -62,7 +62,8 @@ export default function SelectionPopover({
   }, [topOffset, resolveAnchorRect, popoverRef]);
 
   useEffect(() => {
-    if (showPopover) {
+    // Wait for the portal to mount so the ResizeObserver has an element to watch.
+    if (showPopover && mounted) {
       positionedRef.current = false;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset positioning state when popover opens
       setPositioned(false);
@@ -90,7 +91,7 @@ export default function SelectionPopover({
     }
     positionedRef.current = false;
     return undefined;
-  }, [showPopover, computePopoverBox, popoverRef]);
+  }, [showPopover, mounted, computePopoverBox, popoverRef]);
 
   if (!mounted) return null;
 
