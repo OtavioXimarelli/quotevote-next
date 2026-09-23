@@ -28,9 +28,14 @@ export interface SelectedText extends ParsedSelection {
 }
 
 /**
+ * The three independent response pairs. A passage can hold one response per pair.
+ */
+export type VoteAxis = "agreement" | "truth" | "liking";
+
+/**
  * Vote handler function type
  */
-export type VoteHandler = (vote: { type: VoteType; tags: VoteOption }) => void;
+export type VoteHandler = (vote: { type: VoteType; tags: VoteOption }) => void | Promise<void>;
 
 /**
  * Quote handler function type. Receives the passage to place in the Discussion composer.
@@ -56,9 +61,10 @@ export interface VoteResponseOption {
 }
 
 /**
- * The current user's existing vote on the post, if any
+ * One of the current user's existing votes on the selected passage
  */
 export interface UserVote {
+  _id: string;
   type: VoteType;
   tags?: string | null;
 }
@@ -102,14 +108,13 @@ export interface VotingPopupProps {
    */
   selectedText: SelectedText;
   /**
-   * The current user's existing vote on this post (null if none)
+   * The current user's votes on the selected passage (several responses can be active)
    */
-  userVote?: UserVote | null;
+  userVotes: UserVote[];
   /**
-   * Handler function called when a vote is retracted/deleted.
-   * Without it, a user who already voted can't change their vote.
+   * Handler function called to remove one of the user's votes
    */
-  onDeleteVote?: () => void;
+  onRemoveVote: (voteId: string) => void | Promise<void>;
   /**
    * Hides the popup and clears the selection
    */

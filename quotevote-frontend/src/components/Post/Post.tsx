@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { includes } from "lodash";
 import moment from "moment";
 import { useMutation, useQuery } from "@apollo/client/react";
+import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import type { Reference } from "@apollo/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ import {
 import { GET_GROUP, GET_POST, GET_TOP_POSTS, GET_USERS } from "@/graphql/queries";
 import useGuestGuard from "@/hooks/useGuestGuard";
 import { POST_ACTION_PILL_CLASS } from "@/lib/constants/postActions";
+import { VOTE_AXIS } from "@/lib/constants/voteAxes";
 import { cn } from "@/lib/utils";
 import { scrollActionIntoDiscussion } from "@/lib/utils/discussionSplit";
 import { getDomain, sanitizeUrl, toAbsolutePostUrl } from "@/lib/utils/sanitizeUrl";
@@ -212,63 +214,49 @@ export default function Post({
   const hasRejected =
     Array.isArray(localRejectedBy) && localRejectedBy.some((id) => id?.toString() === userIdStr);
   const votedBy = (post.votes || []) as PostVote[];
-  const hasVoted =
-    Array.isArray(votedBy) &&
-    votedBy.some(
-      (v) => v.user?._id?.toString() === userIdStr && !(v as { deleted?: boolean }).deleted
-    );
 
-  const getUserVote = () => {
-    if (!hasVoted) return null;
-    return votedBy.find(
-      (v) => v.user?._id?.toString() === userIdStr && !(v as { deleted?: boolean }).deleted
-    );
+  // The current user's votes on exactly this passage (several responses can be active).
+  const getPassageVotes = (passage: SelectedText): UserVote[] =>
+    votedBy.flatMap((v) => {
+      if (v.user?._id?.toString() !== userIdStr) return [];
+      if ((v as { deleted?: boolean }).deleted || !v._id || !v.type) return [];
+      if (v.startWordIndex !== passage.startIndex || v.endWordIndex !== passage.endIndex) return [];
+      // The API returns `tags` as a String even though PostVote types it as string[].
+      const rawTags: unknown = v.tags;
+      const tags = Array.isArray(rawTags) ? rawTags[0] : rawTags;
+      return [
+        { _id: v._id, type: v.type as VoteType, tags: typeof tags === "string" ? tags : null },
+      ];
+    });
+
+  // GraphQL errors (for example the live API's one-vote-per-post rule, #542) are already
+  // shown by the global Apollo error link, so only report the other failures here.
+  const reportVoteError = (prefix: string, err: unknown) => {
+    if (CombinedGraphQLErrors.is(err)) return;
+    toast.error(`${prefix}: ${err instanceof Error ? err.message : "Unknown"}`);
   };
 
-  const getUserVoteSummary = (): UserVote | null => {
-    const userVote = getUserVote();
-    if (!userVote?.type) return null;
-    // The API returns `tags` as a String even though PostVote types it as string[].
-    const rawTags: unknown = userVote.tags;
-    const tags = Array.isArray(rawTags) ? rawTags[0] : rawTags;
-    return {
-      type: userVote.type as VoteType,
-      tags: typeof tags === "string" ? tags : null,
-    };
-  };
-
-  const handleDeleteVote = async () => {
+  const handleRemoveVote = async (voteId: string) => {
     if (!ensureAuth()) return;
-    const userVote = getUserVote();
-    if (!userVote) return;
     try {
-      await removeVote({
-        variables: {
-          voteId: userVote._id,
-        },
-      });
-      toast.success("Vote removed successfully");
+      await removeVote({ variables: { voteId } });
+      toast.success("Vote removed");
     } catch (err) {
-      toast.error(`Error removing vote: ${err instanceof Error ? err.message : "Unknown"}`);
+      reportVoteError("Error removing vote", err);
     }
   };
 
   const handleVoting = async (obj: { type: VoteType; tags: VoteOption }, passage: SelectedText) => {
     if (!ensureAuth()) return;
-    const userVote = getUserVote();
+    // One response per pair on a passage: the other side of the same pair is replaced,
+    // responses in the other pairs are kept.
+    const opposite = getPassageVotes(passage).find(
+      (v) =>
+        v.tags !== obj.tags && v.tags && VOTE_AXIS[v.tags as VoteOption] === VOTE_AXIS[obj.tags]
+    );
     try {
-      if (userVote) {
-        const current = getUserVoteSummary();
-        if (current?.type === obj.type && current.tags === obj.tags) {
-          await handleDeleteVote();
-          return;
-        }
-        // Switch vote (the API allows one vote per post): delete the existing vote first
-        await removeVote({
-          variables: {
-            voteId: userVote._id,
-          },
-        });
+      if (opposite) {
+        await removeVote({ variables: { voteId: opposite._id } });
       }
       await addVote({
         variables: {
@@ -285,7 +273,7 @@ export default function Post({
       });
       toast.success("Voted successfully");
     } catch (err) {
-      toast.error(`Vote error: ${err instanceof Error ? err.message : "Unknown"}`);
+      reportVoteError("Vote error", err);
     }
   };
 
@@ -616,8 +604,8 @@ export default function Post({
                   onVote={(vote) => handleVoting(vote, selection)}
                   onQuote={handleQuote}
                   selectedText={selection}
-                  userVote={getUserVoteSummary()}
-                  onDeleteVote={handleDeleteVote}
+                  userVotes={getPassageVotes(selection)}
+                  onRemoveVote={handleRemoveVote}
                   onDismiss={dismiss}
                 />
               </Suspense>

@@ -2,7 +2,7 @@
  * VotingPopup component tests (issue #529: Quote / Vote selection popup)
  */
 
-import { render, screen, fireEvent } from "@/__tests__/utils/test-utils";
+import { render, screen, fireEvent, waitFor } from "@/__tests__/utils/test-utils";
 import VotingPopup from "@/components/VotingComponents/VotingPopup";
 import type { VotingPopupProps } from "@/types/voting";
 
@@ -18,8 +18,8 @@ function renderPopup(overrides: Partial<VotingPopupProps> = {}) {
     onVote: jest.fn(),
     onQuote: jest.fn(),
     selectedText,
-    userVote: null,
-    onDeleteVote: jest.fn(),
+    userVotes: [],
+    onRemoveVote: jest.fn(),
     onDismiss: jest.fn(),
     ...overrides,
   };
@@ -88,58 +88,72 @@ describe("VotingPopup", () => {
     ["highlight-false-button", "down", "#false"],
     ["highlight-like-button", "up", "#like"],
     ["highlight-dislike-button", "down", "#dislike"],
-  ])("applies %s as a %s vote tagged %s and closes the popup", (testId, type, tags) => {
+  ])("applies %s as a %s vote tagged %s and keeps the popup open", async (testId, type, tags) => {
     const props = renderPopup();
     openVoteMode();
 
     fireEvent.click(screen.getByTestId(testId));
 
-    expect(props.onVote).toHaveBeenCalledWith({ type, tags });
-    expect(props.onDeleteVote).not.toHaveBeenCalled();
-    expect(props.onDismiss).toHaveBeenCalled();
+    await waitFor(() => expect(props.onVote).toHaveBeenCalledWith({ type, tags }));
+    expect(props.onRemoveVote).not.toHaveBeenCalled();
+    expect(props.onDismiss).not.toHaveBeenCalled();
   });
 
-  it("shows the user's existing vote as pressed", () => {
-    renderPopup({ userVote: { type: "up", tags: "#true" } });
+  it("shows every response the user holds on the passage as pressed", () => {
+    renderPopup({
+      userVotes: [
+        { _id: "v1", type: "up", tags: "#true" },
+        { _id: "v2", type: "down", tags: "#dislike" },
+      ],
+    });
     openVoteMode();
 
     expect(screen.getByTestId("highlight-true-button")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("highlight-dislike-button")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("highlight-agree-button")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("highlight-like-button")).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("retracts the vote when the active response is pressed", () => {
-    const props = renderPopup({ userVote: { type: "down", tags: "#dislike" } });
+  it("removes only the pressed response's vote", async () => {
+    const props = renderPopup({
+      userVotes: [
+        { _id: "v1", type: "up", tags: "#true" },
+        { _id: "v2", type: "down", tags: "#dislike" },
+      ],
+    });
     openVoteMode();
 
     fireEvent.click(screen.getByTestId("highlight-dislike-button"));
 
-    expect(props.onDeleteVote).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(props.onRemoveVote).toHaveBeenCalledWith("v2"));
+    expect(props.onRemoveVote).toHaveBeenCalledTimes(1);
     expect(props.onVote).not.toHaveBeenCalled();
   });
 
-  it("switches the vote when a different response is pressed", () => {
-    const props = renderPopup({ userVote: { type: "up", tags: "#agree" } });
+  it("adds a response in another pair without removing the existing one", async () => {
+    const props = renderPopup({ userVotes: [{ _id: "v1", type: "up", tags: "#true" }] });
     openVoteMode();
 
     fireEvent.click(screen.getByTestId("highlight-like-button"));
 
-    expect(props.onVote).toHaveBeenCalledWith({ type: "up", tags: "#like" });
-    expect(props.onDeleteVote).not.toHaveBeenCalled();
+    await waitFor(() => expect(props.onVote).toHaveBeenCalledWith({ type: "up", tags: "#like" }));
+    expect(props.onRemoveVote).not.toHaveBeenCalled();
   });
 
-  it("locks the responses when the user has voted and vote changes are not supported", () => {
-    const props = renderPopup({
-      userVote: { type: "up", tags: "#agree" },
-      onDeleteVote: undefined,
-    });
+  it("disables the responses while a vote is being saved", async () => {
+    let finish: () => void = () => {};
+    const onVote = jest.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    renderPopup({ onVote });
     openVoteMode();
 
-    expect(screen.getByText("You have already voted on this post.")).toBeInTheDocument();
-    const like = screen.getByTestId("highlight-like-button");
-    expect(like).toBeDisabled();
-    fireEvent.click(like);
-    expect(props.onVote).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("highlight-true-button"));
+    expect(screen.getByTestId("highlight-true-button")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByTestId("highlight-like-button")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("highlight-true-button"));
+    expect(onVote).toHaveBeenCalledTimes(1);
+
+    finish();
+    await waitFor(() => expect(screen.getByTestId("highlight-like-button")).toBeEnabled());
   });
 
   it("sends the selected passage to the composer and closes the popup on Quote", () => {

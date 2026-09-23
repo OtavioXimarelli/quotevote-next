@@ -6,6 +6,7 @@
 
 import { render, screen, fireEvent, waitFor } from "@/__tests__/utils/test-utils";
 import Post from "@/components/Post/Post";
+import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import { DELETE_VOTE, VOTE } from "@/graphql/mutations";
 import type { PostProps } from "@/types/post";
 import type { SelectedText, VotingPopupProps } from "@/types/voting";
@@ -41,7 +42,10 @@ jest.mock("@apollo/client/react", () => ({
   },
 }));
 
-jest.mock("sonner", () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
+const mockToastError = jest.fn();
+jest.mock("sonner", () => ({
+  toast: { success: jest.fn(), error: (...args: unknown[]) => mockToastError(...args) },
+}));
 
 const SELECTION: SelectedText = {
   startIndex: 5,
@@ -62,10 +66,17 @@ jest.mock("@/components/VotingComponents/VotingBoard", () => ({
 
 jest.mock("@/components/VotingComponents/VotingPopup", () => ({
   __esModule: true,
-  default: ({ onQuote, onVote, onDismiss, selectedText, userVote }: VotingPopupProps) => (
+  default: ({
+    onQuote,
+    onVote,
+    onRemoveVote,
+    onDismiss,
+    selectedText,
+    userVotes,
+  }: VotingPopupProps) => (
     <div
       data-testid="popup-stub"
-      data-user-vote={userVote ? `${userVote.type}:${userVote.tags}` : ""}
+      data-user-votes={userVotes.map((v) => `${v._id}:${v.type}:${v.tags}`).join(",")}
     >
       <button type="button" onClick={() => onQuote(selectedText)}>
         stub-quote
@@ -75,6 +86,12 @@ jest.mock("@/components/VotingComponents/VotingPopup", () => ({
       </button>
       <button type="button" onClick={() => onVote({ type: "up", tags: "#agree" })}>
         stub-agree
+      </button>
+      <button type="button" onClick={() => onVote({ type: "down", tags: "#disagree" })}>
+        stub-disagree
+      </button>
+      <button type="button" onClick={() => onRemoveVote("v-old")}>
+        stub-remove
       </button>
       <button type="button" onClick={() => onDismiss?.()}>
         stub-dismiss
@@ -171,39 +188,95 @@ describe("Post selection actions", () => {
     expect(mockRemoveVote).not.toHaveBeenCalled();
   });
 
-  it("passes the user's current vote (type and tag) to the popup", async () => {
-    // The API returns tags as a String even though PostVote types it as string[].
-    renderPost({}, [
-      { _id: "v-old", type: "up", tags: "#agree" as unknown as string[], user: { _id: "me" } },
-    ]);
-
-    expect(await screen.findByTestId("popup-stub")).toHaveAttribute("data-user-vote", "up:#agree");
+  // The API returns tags as a String even though PostVote types it as string[].
+  const vote = (id: string, type: string, tags: string, owner = "me", start = 5, end = 20) => ({
+    _id: id,
+    type,
+    tags: tags as unknown as string[],
+    startWordIndex: start,
+    endWordIndex: end,
+    user: { _id: owner },
   });
 
-  it("switches between two upvote tags instead of retracting", async () => {
+  it("passes only the user's votes on the selected passage to the popup", async () => {
     renderPost({}, [
-      { _id: "v-old", type: "up", tags: "#agree" as unknown as string[], user: { _id: "me" } },
+      vote("v-true", "up", "#true"),
+      vote("v-like", "up", "#like"),
+      vote("v-other-passage", "up", "#agree", "me", 30, 40),
+      vote("v-other-user", "down", "#false", "someone-else"),
     ]);
+
+    expect(await screen.findByTestId("popup-stub")).toHaveAttribute(
+      "data-user-votes",
+      "v-true:up:#true,v-like:up:#like"
+    );
+  });
+
+  it("adds a response in another pair without removing the existing ones", async () => {
+    renderPost({}, [vote("v-true", "up", "#true")]);
 
     fireEvent.click(await screen.findByText("stub-like"));
 
     await waitFor(() => expect(mockAddVote).toHaveBeenCalledTimes(1));
-    expect(mockRemoveVote).toHaveBeenCalledWith({ variables: { voteId: "v-old" } });
+    expect(mockAddVote.mock.calls[0][0].variables.vote.tags).toBe("#like");
+    expect(mockRemoveVote).not.toHaveBeenCalled();
+  });
+
+  it("replaces the other side of the same pair on this passage", async () => {
+    renderPost({}, [vote("v-agree", "up", "#agree"), vote("v-like", "up", "#like")]);
+
+    fireEvent.click(await screen.findByText("stub-disagree"));
+
+    await waitFor(() => expect(mockAddVote).toHaveBeenCalledTimes(1));
+    expect(mockRemoveVote).toHaveBeenCalledTimes(1);
+    expect(mockRemoveVote).toHaveBeenCalledWith({ variables: { voteId: "v-agree" } });
     expect(mockRemoveVote.mock.invocationCallOrder[0]).toBeLessThan(
       mockAddVote.mock.invocationCallOrder[0]
     );
-    expect(mockAddVote.mock.calls[0][0].variables.vote.tags).toBe("#like");
+    expect(mockAddVote.mock.calls[0][0].variables.vote.tags).toBe("#disagree");
   });
 
-  it("retracts when the same response is chosen again", async () => {
-    renderPost({}, [
-      { _id: "v-old", type: "up", tags: "#agree" as unknown as string[], user: { _id: "me" } },
-    ]);
+  it("leaves votes on other passages alone", async () => {
+    renderPost({}, [vote("v-agree-elsewhere", "up", "#agree", "me", 30, 40)]);
 
-    fireEvent.click(await screen.findByText("stub-agree"));
+    fireEvent.click(await screen.findByText("stub-disagree"));
 
-    await waitFor(() => expect(mockRemoveVote).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockAddVote).toHaveBeenCalledTimes(1));
+    expect(mockRemoveVote).not.toHaveBeenCalled();
+  });
+
+  it("removes a single vote by id", async () => {
+    renderPost({}, [vote("v-old", "up", "#true")]);
+
+    fireEvent.click(await screen.findByText("stub-remove"));
+
+    await waitFor(() =>
+      expect(mockRemoveVote).toHaveBeenCalledWith({ variables: { voteId: "v-old" } })
+    );
     expect(mockAddVote).not.toHaveBeenCalled();
+  });
+
+  it("leaves GraphQL errors to the global error toast", async () => {
+    mockAddVote.mockRejectedValueOnce(
+      new CombinedGraphQLErrors({
+        errors: [{ message: "Error: You have already voted on this post" }],
+      })
+    );
+    renderPost({}, [vote("v-true", "up", "#true")]);
+
+    fireEvent.click(await screen.findByText("stub-like"));
+
+    await waitFor(() => expect(mockAddVote).toHaveBeenCalledTimes(1));
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  it("reports other vote failures itself", async () => {
+    mockAddVote.mockRejectedValueOnce(new Error("socket hang up"));
+    renderPost();
+
+    fireEvent.click(await screen.findByText("stub-like"));
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Vote error: socket hang up"));
   });
 
   it("gives the popup VotingBoard's dismiss control", async () => {

@@ -57,14 +57,13 @@ export default function VotingPopup({
   onVote,
   onQuote,
   selectedText,
-  userVote,
-  onDeleteVote,
+  userVotes,
+  onRemoveVote,
   onDismiss,
 }: VotingPopupProps) {
   const [mode, setMode] = useState<SelectionPopupMode | null>(null);
-
-  const hasVoted = Boolean(userVote);
-  const voteLocked = hasVoted && !onDeleteVote;
+  // Tag whose vote request is in flight, so a double tap can't cast it twice.
+  const [pendingTag, setPendingTag] = useState<VoteResponseOption["tags"] | null>(null);
 
   const handleQuote = () => {
     setMode("quote");
@@ -76,18 +75,24 @@ export default function VotingPopup({
     setMode((current) => (current === "vote" ? null : "vote"));
   };
 
-  const handleResponse = (option: VoteResponseOption, active: boolean) => {
-    if (voteLocked) return;
-    if (active) {
-      onDeleteVote?.();
-    } else {
-      onVote({ type: option.type, tags: option.tags });
+  // Each response is its own toggle; the popup stays open so several can be set in a row.
+  const handleResponse = async (option: VoteResponseOption) => {
+    if (pendingTag) return;
+    const existing = findVote(option);
+    setPendingTag(option.tags);
+    try {
+      if (existing) {
+        await onRemoveVote(existing._id);
+      } else {
+        await onVote({ type: option.type, tags: option.tags });
+      }
+    } finally {
+      setPendingTag(null);
     }
-    onDismiss?.();
   };
 
-  const isActiveVote = (option: VoteResponseOption) =>
-    userVote?.type === option.type && userVote?.tags === option.tags;
+  const findVote = (option: VoteResponseOption) =>
+    userVotes.find((vote) => vote.type === option.type && vote.tags === option.tags);
 
   return (
     <div
@@ -147,14 +152,9 @@ export default function VotingPopup({
           data-testid="highlight-vote-options"
           className="mt-2 border-t border-border pt-2 animate-in fade-in-0 slide-in-from-top-1"
         >
-          {voteLocked && (
-            <p className="mb-2 px-1 text-xs text-muted-foreground">
-              You have already voted on this post.
-            </p>
-          )}
           <div className="grid grid-cols-2 gap-2">
             {VOTE_ROWS.flat().map((option) => {
-              const active = isActiveVote(option);
+              const active = Boolean(findVote(option));
               const positive = option.type === "up";
               const Icon = option.icon;
               return (
@@ -166,8 +166,9 @@ export default function VotingPopup({
                   aria-label={
                     active ? `${option.label} (your vote, press to remove)` : option.label
                   }
-                  disabled={voteLocked}
-                  onClick={() => handleResponse(option, active)}
+                  disabled={pendingTag !== null}
+                  aria-busy={pendingTag === option.tags}
+                  onClick={() => handleResponse(option)}
                   className={cn(
                     "flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium",
                     "text-foreground transition-colors",
