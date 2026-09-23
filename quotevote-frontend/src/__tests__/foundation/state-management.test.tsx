@@ -192,6 +192,23 @@ describe('State Management (Zustand)', () => {
       })
       expect(useAppStore.getState().ui.pendingQuote).toBeNull()
     })
+
+    it.each(['logout', 'clearUserData'] as const)(
+      'drops a staged quote on %s so the next user cannot post it',
+      (action) => {
+        act(() => {
+          useAppStore
+            .getState()
+            .setPendingQuote({ postId: 'post1', text: 'a passage', startIndex: 4, endIndex: 13 })
+        })
+
+        act(() => {
+          useAppStore.getState()[action]()
+        })
+
+        expect(useAppStore.getState().ui.pendingQuote).toBeNull()
+      }
+    )
   })
 
   describe('Store Reset', () => {

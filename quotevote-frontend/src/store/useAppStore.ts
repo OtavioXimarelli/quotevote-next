@@ -146,9 +146,11 @@ export const useAppStore = create<AppStore>()(
       user: { ...state.user, data },
     })),
 
+  // A staged quote belongs to the signed-in user, so it goes with the session.
   clearUserData: () =>
     set((state) => ({
       user: { ...state.user, data: {} },
+      ui: { ...state.ui, pendingQuote: null },
     })),
 
   setUserLoading: (loading) =>
@@ -162,11 +164,12 @@ export const useAppStore = create<AppStore>()(
     })),
 
   logout: () =>
-    set(() => ({
+    set((state) => ({
       user: {
         ...initialUserState,
         loading: false,
       },
+      ui: { ...state.ui, pendingQuote: null },
     })),
 
   updateAvatar: (avatar) =>
