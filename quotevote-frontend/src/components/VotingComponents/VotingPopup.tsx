@@ -1,506 +1,199 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { isEmpty, findIndex } from 'lodash'
-import { Loader2 } from 'lucide-react'
-import { useAppStore } from '@/store'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { Like } from '@/components/Icons/Like'
-import { Dislike } from '@/components/Icons/Dislike'
-import { Comment } from '@/components/Icons/Comment'
-import { Quote } from '@/components/Icons/Quote'
+import { useState } from 'react'
+import { Check, Heart, HeartCrack, Quote, ThumbsDown, ThumbsUp, Vote, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { VotingPopupProps, VoteType, VoteOption } from '@/types/voting'
+import type {
+  SelectionPopupMode,
+  VoteResponseOption,
+  VotingPopupProps,
+} from '@/types/voting'
+
+// Rows follow the design: positive on the left, negative on the right.
+const VOTE_ROWS: [VoteResponseOption, VoteResponseOption][] = [
+  [
+    { type: 'up', tags: '#agree', label: 'Agree', icon: ThumbsUp, testId: 'highlight-agree-button' },
+    {
+      type: 'down',
+      tags: '#disagree',
+      label: 'Disagree',
+      icon: ThumbsDown,
+      testId: 'highlight-disagree-button',
+    },
+  ],
+  [
+    { type: 'up', tags: '#true', label: 'True', icon: Check, testId: 'highlight-true-button' },
+    { type: 'down', tags: '#false', label: 'False', icon: X, testId: 'highlight-false-button' },
+  ],
+  [
+    {
+      type: 'up',
+      tags: '#like',
+      label: 'Like',
+      icon: Heart,
+      filledIcon: true,
+      testId: 'highlight-like-button',
+    },
+    {
+      type: 'down',
+      tags: '#dislike',
+      label: 'Dislike',
+      icon: HeartCrack,
+      testId: 'highlight-dislike-button',
+    },
+  ],
+]
+
+const VOTE_PANEL_ID = 'selection-popup-vote-options'
 
 /**
  * VotingPopup component
- * Displays voting options (upvote, downvote, comment, quote) when text is selected
+ * Selection popup with two mutually exclusive modes: Quote (send the passage to the
+ * Discussion composer) and Vote (Agree/Disagree, True/False, Like/Dislike on the passage).
  */
 export default function VotingPopup({
-  votedBy,
   onVote,
-  onAddComment,
-  onAddQuote,
+  onQuote,
   selectedText,
-  hasVoted,
-  userVoteType,
+  userVote,
   onDeleteVote,
+  onDismiss,
 }: VotingPopupProps) {
-  const user = useAppStore((state) => state.user.data)
-  const [expand, setExpand] = useState<{ open: boolean; type: string }>({
-    open: false,
-    type: '',
-  })
-  const [comment, setComment] = useState('')
-  const [commentSubmitting, setCommentSubmitting] = useState(false)
-  const [validationError, setValidationError] = useState('')
-  const [checkWindowWidth, setCheckWindowWidth] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 400
-    }
-    return true
-  })
+  const [mode, setMode] = useState<SelectionPopupMode | null>(null)
 
-  const handleWindowSizeChange = useCallback(() => {
-    if (window.innerWidth < 400) {
-      setCheckWindowWidth(false)
-    } else {
-      setCheckWindowWidth(true)
-    }
-  }, [])
+  const hasVoted = Boolean(userVote)
+  const voteLocked = hasVoted && !onDeleteVote
 
-  useEffect(() => {
-    window.addEventListener('resize', handleWindowSizeChange)
-    return () => {
-      window.removeEventListener('resize', handleWindowSizeChange)
-    }
-  }, [handleWindowSizeChange])
-
-  const handleSetExpand = useCallback((newExpand: { open: boolean; type: string }) => {
-    if (!newExpand.open || newExpand.type !== 'comment') {
-      setValidationError('')
-    }
-    setExpand(newExpand)
-  }, [])
-
-  const voteOptions: VoteOption[] = (() => {
-    if (expand.type === 'up') {
-      return ['#true', '#agree', '#like']
-    }
-    if (expand.type === 'down') {
-      return ['#false', '#disagree', '#dislike']
-    }
-    return []
-  })()
-
-  let showUpvoteTooltip = false
-  let showDownvoteTooltip = false
-  const userId = user._id || user.id
-  const index = findIndex(votedBy, (vote) => vote.userId === userId)
-  if (index !== -1) {
-    if (votedBy[index].type === 'up') {
-      showUpvoteTooltip = true
-    } else {
-      showDownvoteTooltip = true
-    }
+  const handleQuote = () => {
+    setMode('quote')
+    onQuote(selectedText)
+    onDismiss?.()
   }
 
-  const handleVote = useCallback(
-    (tags: VoteOption) => {
-      // Vote changes are allowed when onDeleteVote is provided; the parent
-      // deletes the existing vote then creates the new one.
-      if (hasVoted && !onDeleteVote) {
-        return
-      }
-      onVote({ type: expand.type as VoteType, tags })
-      handleSetExpand({ open: false, type: '' })
-    },
-    [hasVoted, expand.type, onVote, handleSetExpand, onDeleteVote],
-  )
+  const handleVoteMode = () => {
+    setMode((current) => (current === 'vote' ? null : 'vote'))
+  }
 
-  const handleAddComment = useCallback(async () => {
-    if (!comment.trim()) {
-      setValidationError('Please enter a comment')
-      return
+  const handleResponse = (option: VoteResponseOption, active: boolean) => {
+    if (voteLocked) return
+    if (active) {
+      onDeleteVote?.()
+    } else {
+      onVote({ type: option.type, tags: option.tags })
     }
-    const withQuote = !isEmpty(selectedText.text)
-    setCommentSubmitting(true)
-    try {
-      await onAddComment(comment.trim(), withQuote)
-      setComment('')
-      setValidationError('')
-      handleSetExpand({ open: false, type: '' })
-    } finally {
-      setCommentSubmitting(false)
-    }
-  }, [comment, selectedText.text, onAddComment, handleSetExpand])
+    onDismiss?.()
+  }
 
-  const handleAddQuote = useCallback(() => {
-    onAddQuote()
-    handleSetExpand({ open: false, type: '' })
-  }, [onAddQuote, handleSetExpand])
-
-  useEffect(() => {
-    const selectionPopover = document.querySelector('#popButtons')
-    if (selectionPopover) {
-      const handleMouseDown = (e: Event) => {
-        const target = e.target as HTMLElement
-        if (
-          target &&
-          (target.tagName === 'INPUT' ||
-            target.tagName === 'TEXTAREA' ||
-            target.isContentEditable ||
-            target.closest('input, textarea'))
-        ) {
-          return
-        }
-        e.preventDefault()
-      }
-      selectionPopover.addEventListener('mousedown', handleMouseDown)
-      return () => {
-        if (selectionPopover) {
-          selectionPopover.removeEventListener('mousedown', handleMouseDown)
-        }
-      }
-    }
-    return undefined
-  }, [])
-
-  const isComment = expand.type === 'comment'
-
-  const voteTooltipText = hasVoted
-    ? `You have already ${userVoteType === 'up' ? 'upvoted' : 'downvoted'} this post${!onDeleteVote ? '. Vote changes are not allowed' : ''}`
-    : ''
+  const isActiveVote = (option: VoteResponseOption) =>
+    userVote?.type === option.type && userVote?.tags === option.tags
 
   return (
-    <TooltipProvider>
-      <div
-        className="relative z-[1]"
-        aria-expanded={expand.open}
-        style={{
-          backgroundImage: 'linear-gradient(to top, #1bb5d8, #4066ec)',
-          width: checkWindowWidth ? 285 : 240,
-        }}
-      >
-        <div className="grid grid-cols-4" role="group" aria-label="Voting options">
-          {/* Upvote Button */}
-          <div
-            className={cn(
-              'flex items-center justify-center',
-              (expand.type === 'up' || (hasVoted && userVoteType === 'up')) && 'bg-[#2475b0]',
-            )}
-          >
-            {hasVoted ? (
-              !onDeleteVote ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled
-                        className="opacity-50"
-                        aria-label="Upvote"
-                        data-testid="highlight-agree-button"
-                      >
-                        <Like size={30} />
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>{voteTooltipText}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ) : userVoteType === 'up' ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Upvote"
-                      data-testid="highlight-agree-button"
-                      onClick={() => {
-                        onDeleteVote?.()
-                      }}
-                    >
-                      <Like size={30} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Retract upvote</p>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Upvote"
-                      data-testid="highlight-agree-button"
-                      onClick={() => {
-                        handleSetExpand({
-                          open: expand.type !== 'up' || !expand.open,
-                          type: 'up',
-                        })
-                      }}
-                    >
-                      <Like size={30} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Change vote to upvote</p>
-                  </TooltipContent>
-                </Tooltip>
+    <div
+      role="group"
+      aria-label="Passage actions"
+      data-testid="selection-popup"
+      // Keep the text selection alive while pressing popup buttons with a mouse.
+      onMouseDown={(event) => event.preventDefault()}
+      className={cn(
+        'w-[min(20rem,calc(100vw-1.25rem))] rounded-2xl border border-border',
+        'bg-popover p-2 text-popover-foreground shadow-xl',
+        'animate-in fade-in-0 zoom-in-95'
+      )}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          data-testid="highlight-quote-button"
+          aria-pressed={mode === 'quote'}
+          onClick={handleQuote}
+          className={cn(
+            'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border',
+            'text-sm font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            mode === 'quote'
+              ? 'border-info bg-info/15 font-semibold'
+              : 'border-transparent bg-muted hover:bg-accent'
+          )}
+        >
+          <Quote className="size-5" aria-hidden="true" />
+          Quote
+        </button>
+        <button
+          type="button"
+          data-testid="highlight-vote-mode-button"
+          aria-pressed={mode === 'vote'}
+          aria-expanded={mode === 'vote'}
+          aria-controls={VOTE_PANEL_ID}
+          onClick={handleVoteMode}
+          className={cn(
+            'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border',
+            'text-sm font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            mode === 'vote'
+              ? 'border-info bg-info/15 font-semibold'
+              : 'border-transparent bg-muted hover:bg-accent'
+          )}
+        >
+          <Vote className="size-5" aria-hidden="true" />
+          Vote
+        </button>
+      </div>
+
+      {mode === 'vote' && (
+        <div
+          id={VOTE_PANEL_ID}
+          data-testid="highlight-vote-options"
+          className="mt-2 border-t border-border pt-2 animate-in fade-in-0 slide-in-from-top-1"
+        >
+          {voteLocked && (
+            <p className="mb-2 px-1 text-xs text-muted-foreground">
+              You have already voted on this post.
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            {VOTE_ROWS.flat().map((option) => {
+              const active = isActiveVote(option)
+              const positive = option.type === 'up'
+              const Icon = option.icon
+              return (
+                <button
+                  key={option.tags}
+                  type="button"
+                  data-testid={option.testId}
+                  aria-pressed={active}
+                  aria-label={active ? `${option.label} (your vote, press to remove)` : option.label}
+                  disabled={voteLocked}
+                  onClick={() => handleResponse(option, active)}
+                  className={cn(
+                    'flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium',
+                    'text-foreground transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'disabled:cursor-not-allowed disabled:opacity-50',
+                    positive
+                      ? 'bg-upvote/10 hover:bg-upvote/20'
+                      : 'bg-downvote/10 hover:bg-downvote/20',
+                    active
+                      ? positive
+                        ? 'border-upvote bg-upvote/25 font-semibold'
+                        : 'border-downvote bg-downvote/25 font-semibold'
+                      : 'border-transparent'
+                  )}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className={cn(
+                      'size-5 shrink-0',
+                      positive ? 'text-upvote' : 'text-downvote',
+                      option.filledIcon && 'fill-current'
+                    )}
+                  />
+                  <span className="truncate">{option.label}</span>
+                </button>
               )
-            ) : showUpvoteTooltip ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Upvote"
-                    data-testid="highlight-agree-button"
-                  >
-                    <Like size={30} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Upvoted</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Upvote"
-                data-testid="highlight-agree-button"
-                onClick={() => {
-                  handleSetExpand({
-                    open: expand.type !== 'up' || !expand.open,
-                    type: 'up',
-                  })
-                }}
-              >
-                <Like size={30} />
-              </Button>
-            )}
-          </div>
-
-          {/* Downvote Button */}
-          <div
-            className={cn(
-              'flex items-center justify-center',
-              (expand.type === 'down' || (hasVoted && userVoteType === 'down')) && 'bg-[#2475b0]',
-            )}
-          >
-            {hasVoted ? (
-              !onDeleteVote ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled
-                        className="opacity-50"
-                        aria-label="Downvote"
-                        data-testid="highlight-disagree-button"
-                      >
-                        <Dislike size={30} />
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>{voteTooltipText}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ) : userVoteType === 'down' ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Downvote"
-                      data-testid="highlight-disagree-button"
-                      onClick={() => {
-                        onDeleteVote?.()
-                      }}
-                    >
-                      <Dislike size={30} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Retract downvote</p>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Downvote"
-                      data-testid="highlight-disagree-button"
-                      onClick={() => {
-                        handleSetExpand({
-                          open: expand.type !== 'down' || !expand.open,
-                          type: 'down',
-                        })
-                      }}
-                    >
-                      <Dislike size={30} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Change vote to downvote</p>
-                  </TooltipContent>
-                </Tooltip>
-              )
-            ) : showDownvoteTooltip ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Downvote"
-                    data-testid="highlight-disagree-button"
-                  >
-                    <Dislike size={30} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Downvoted</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Downvote"
-                data-testid="highlight-disagree-button"
-                onClick={() => {
-                  handleSetExpand({
-                    open: expand.type !== 'down' || !expand.open,
-                    type: 'down',
-                  })
-                }}
-              >
-                <Dislike size={30} />
-              </Button>
-            )}
-          </div>
-
-          {/* Comment Button */}
-          <div
-            className={cn(
-              'flex items-center justify-center',
-              expand.type === 'comment' && 'bg-[#2475b0]',
-            )}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Comment"
-              data-testid="highlight-comment-button"
-              onClick={() =>
-                handleSetExpand({
-                  open: expand.type !== 'comment' || !expand.open,
-                  type: 'comment',
-                })
-              }
-            >
-              <Comment size={30} />
-            </Button>
-          </div>
-
-          {/* Quote Button */}
-          <div
-            className={cn(
-              'flex items-center justify-center',
-              expand.type === 'quote' && 'bg-[#2475b0]',
-            )}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Quote"
-              data-testid="highlight-quote-button"
-              onClick={() => {
-                const newQuote = expand.type !== 'quote'
-                handleSetExpand({ open: false, type: newQuote ? 'quote' : '' })
-                if (newQuote) {
-                  handleAddQuote()
-                }
-              }}
-            >
-              <Quote size={30} className="text-white" />
-            </Button>
+            })}
           </div>
         </div>
-      </div>
-
-      {/* Expanded Options Panel */}
-      <div
-        id="popButtons"
-        className={cn(
-          'absolute bg-white p-4 shadow-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
-          expand.open
-            ? 'opacity-100 scale-100'
-            : 'opacity-0 scale-95 pointer-events-none',
-          checkWindowWidth ? 'w-[310px]' : 'w-[270px]',
-          'top-full',
-        )}
-        style={{
-          visibility: expand.open ? 'visible' : 'hidden',
-        }}
-      >
-        {isComment ? (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Type comment here"
-                value={comment}
-                onChange={(e) => {
-                  setComment(e.target.value)
-                  if (validationError) {
-                    setValidationError('')
-                  }
-                }}
-                disabled={commentSubmitting}
-                className={cn(
-                  'flex-1 text-[#3c4858cc] pb-1',
-                  commentSubmitting && 'opacity-50',
-                  validationError && 'border-destructive focus-visible:ring-destructive',
-                )}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey && !commentSubmitting) {
-                    event.preventDefault()
-                    handleAddComment()
-                  }
-                }}
-                autoFocus
-              />
-              <Button
-                onClick={handleAddComment}
-                disabled={commentSubmitting}
-                className="bg-[#52b274] text-white hover:bg-[#52b274]/90"
-                size="sm"
-              >
-                {commentSubmitting ? <Loader2 className="size-4 animate-spin" /> : 'Send'}
-              </Button>
-            </div>
-            {validationError && (
-              <p className="text-xs text-destructive m-0 px-1">{validationError}</p>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex gap-1">
-              {voteOptions.map((option, i) => (
-                <Button
-                  key={option}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleVote(option)}
-                  className="normal-case animate-in fade-in-0 zoom-in-95 active:scale-90 transition-transform"
-                  style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}
-                >
-                  {option}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </TooltipProvider>
+      )}
+    </div>
   )
 }
-

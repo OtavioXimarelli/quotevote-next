@@ -3,6 +3,7 @@
  * Types for voting components and vote-related data structures
  */
 
+import type { LucideIcon } from "lucide-react";
 import type { PostVote } from "./post";
 import type { ParsedSelection } from "./store";
 
@@ -42,14 +43,52 @@ export interface SelectedText extends ParsedSelection {
 export type VoteHandler = (vote: { type: VoteType; tags: VoteOption }) => void;
 
 /**
- * Comment handler function type
+ * Quote handler function type. Receives the passage to place in the Discussion composer.
  */
-export type CommentHandler = (comment: string, withQuote: boolean) => void | Promise<void>;
+export type QuoteHandler = (selection: SelectedText) => void;
 
 /**
- * Quote handler function type
+ * Mutually exclusive modes of the selection popup (issue #529)
  */
-export type QuoteHandler = () => void;
+export type SelectionPopupMode = "quote" | "vote";
+
+/**
+ * One response row cell in the popup's Vote mode
+ */
+export interface VoteResponseOption {
+  type: VoteType;
+  tags: VoteOption;
+  label: string;
+  icon: LucideIcon;
+  /** Render the icon filled (the design's solid heart) */
+  filledIcon?: boolean;
+  testId: string;
+}
+
+/**
+ * The current user's existing vote on the post, if any
+ */
+export interface UserVote {
+  type: VoteType;
+  tags?: string | null;
+}
+
+/**
+ * Controls VotingBoard passes to its popup render prop
+ */
+export interface SelectionPopupControls {
+  /** Clears the text selection and hides the popup */
+  dismiss: () => void;
+}
+
+/**
+ * Props for the VotingBoard helper that renders the popup render prop
+ */
+export interface SelectionPopupContentProps {
+  render: (selection: SelectedText, controls: SelectionPopupControls) => React.ReactNode;
+  selection: SelectedText;
+  dismiss: () => void;
+}
 
 /**
  * Selection handler function type
@@ -61,37 +100,30 @@ export type SelectionHandler = (selection: SelectedText) => void;
  */
 export interface VotingPopupProps {
   /**
-   * Array of users who have voted
-   */
-  votedBy: VotedByEntry[];
-  /**
-   * Handler function called when a vote is submitted
+   * Handler function called when a vote response is chosen
    */
   onVote: VoteHandler;
   /**
-   * Handler function called when a comment is added
+   * Handler function called when Quote is chosen
    */
-  onAddComment: CommentHandler;
-  /**
-   * Handler function called when a quote is added
-   */
-  onAddQuote: QuoteHandler;
+  onQuote: QuoteHandler;
   /**
    * Currently selected text
    */
   selectedText: SelectedText;
   /**
-   * Whether the current user has already voted
+   * The current user's existing vote on this post (null if none)
    */
-  hasVoted: boolean;
+  userVote?: UserVote | null;
   /**
-   * Type of vote the current user has cast (if any)
-   */
-  userVoteType?: VoteType | null;
-  /**
-   * Handler function called when a vote is retracted/deleted
+   * Handler function called when a vote is retracted/deleted.
+   * Without it, a user who already voted can't change their vote.
    */
   onDeleteVote?: () => void;
+  /**
+   * Hides the popup and clears the selection
+   */
+  onDismiss?: () => void;
 }
 
 /**
@@ -127,7 +159,7 @@ export interface VotingBoardProps {
   /**
    * Render prop function that receives selection data
    */
-  children?: (selection: SelectedText) => React.ReactNode;
+  children?: (selection: SelectedText, controls: SelectionPopupControls) => React.ReactNode;
   /**
    * Array of votes to highlight
    */

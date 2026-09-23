@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, lazy, Suspense, useCallback } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { includes } from "lodash";
 import moment from "moment";
@@ -28,8 +28,6 @@ import { BookmarkIconButton } from "@/components/CustomButtons/BookmarkIconButto
 import { ApproveButton } from "@/components/CustomButtons/ApproveButton";
 import { RejectButton } from "@/components/CustomButtons/RejectButton";
 import {
-  ADD_COMMENT,
-  ADD_QUOTE,
   REPORT_POST,
   VOTE,
   APPROVE_POST,
@@ -41,7 +39,6 @@ import {
   GET_GROUP,
   GET_POST,
   GET_TOP_POSTS,
-  GET_USER_ACTIVITY,
   GET_USERS,
 } from "@/graphql/queries";
 import useGuestGuard from "@/hooks/useGuestGuard";
@@ -53,7 +50,7 @@ import { useAppStore } from "@/store";
 import VotingBoard from "@/components/VotingComponents/VotingBoard";
 const VotingPopup = lazy(() => import("@/components/VotingComponents/VotingPopup"));
 import type { PostVote, PostProps } from "@/types/post";
-import type { SelectedText, VotedByEntry, VoteType, VoteOption } from "@/types/voting";
+import type { SelectedText, UserVote, VoteType, VoteOption } from "@/types/voting";
 
 type VoteStateMutationPost = {
   _id: string;
@@ -74,6 +71,7 @@ export default function Post({
   const ensureAuth = useGuestGuard();
   const linkedPassage = useAppStore((state) => state.ui.linkedPassage);
   const mobileDiscussionOpen = useAppStore((state) => state.ui.mobileDiscussionOpen);
+  const setPendingQuote = useAppStore((state) => state.setPendingQuote);
 
   const handleHighlightClick = () => {
     const actionId = linkedPassage?.actionId;
@@ -95,17 +93,6 @@ export default function Post({
   const { title, creator, created, _id, userId } = post;
   const { name, avatar, username } = creator || {};
   const { _followingId = [] } = user;
-
-  const [selectedText, setSelectedText] = useState<SelectedText>({
-    text: "",
-    startIndex: 0,
-    endIndex: 0,
-    points: 0,
-  });
-
-  const handleDeselect = useCallback(() => {
-    setSelectedText({ text: "", startIndex: 0, endIndex: 0, points: 0 });
-  }, []);
 
   const isFollowing = includes(_followingId, userId);
   const admin = user.admin || false;
@@ -143,32 +130,6 @@ export default function Post({
     refetchQueries: [
       { query: GET_TOP_POSTS, variables: { limit: 5, offset: 0, searchKey: "" } },
       { query: GET_POST, variables: { postId: _id } },
-    ],
-  });
-
-  const [addComment] = useMutation(ADD_COMMENT, {
-    refetchQueries: [
-      { query: GET_TOP_POSTS, variables: { limit: 5, offset: 0, searchKey: "" } },
-      { query: GET_POST, variables: { postId: _id } },
-    ],
-  });
-
-  const [addQuote] = useMutation(ADD_QUOTE, {
-    refetchQueries: [
-      { query: GET_TOP_POSTS, variables: { limit: 5, offset: 0, searchKey: "" } },
-      { query: GET_POST, variables: { postId: _id } },
-      {
-        query: GET_USER_ACTIVITY,
-        variables: {
-          limit: 15,
-          offset: 0,
-          searchKey: "",
-          activityEvent: ["POSTED", "VOTED", "COMMENTED", "QUOTED", "LIKED"],
-          user_id: user._id || "",
-          startDateRange: "",
-          endDateRange: "",
-        },
-      },
     ],
   });
 
@@ -269,9 +230,16 @@ export default function Post({
     );
   };
 
-  const getUserVoteType = () => {
+  const getUserVoteSummary = (): UserVote | null => {
     const userVote = getUserVote();
-    return userVote ? userVote.type : null;
+    if (!userVote?.type) return null;
+    // The API returns `tags` as a String even though PostVote types it as string[].
+    const rawTags: unknown = userVote.tags;
+    const tags = Array.isArray(rawTags) ? rawTags[0] : rawTags;
+    return {
+      type: userVote.type as VoteType,
+      tags: typeof tags === "string" ? tags : null,
+    };
   };
 
   const handleDeleteVote = async () => {
@@ -290,16 +258,20 @@ export default function Post({
     }
   };
 
-  const handleVoting = async (obj: { type: VoteType; tags: VoteOption }) => {
+  const handleVoting = async (
+    obj: { type: VoteType; tags: VoteOption },
+    passage: SelectedText
+  ) => {
     if (!ensureAuth()) return;
     const userVote = getUserVote();
     try {
       if (userVote) {
-        if (userVote.type === obj.type) {
+        const current = getUserVoteSummary();
+        if (current?.type === obj.type && current.tags === obj.tags) {
           await handleDeleteVote();
           return;
         }
-        // Switch vote: synchronously delete existing vote first
+        // Switch vote (the API allows one vote per post): delete the existing vote first
         await removeVote({
           variables: {
             voteId: userVote._id,
@@ -309,13 +281,13 @@ export default function Post({
       await addVote({
         variables: {
           vote: {
-            content: selectedText.text || "",
+            content: passage.text || "",
             postId: post._id,
             userId: user._id,
             type: obj.type,
             tags: obj.tags,
-            startWordIndex: selectedText.startIndex,
-            endWordIndex: selectedText.endIndex,
+            startWordIndex: passage.startIndex,
+            endWordIndex: passage.endIndex,
           },
         },
       });
@@ -325,51 +297,15 @@ export default function Post({
     }
   };
 
-  const handleAddComment = async (comment: string, commentWithQuote = false) => {
+  const handleQuote = (selection: SelectedText) => {
     if (!ensureAuth()) return;
-    if (!comment.trim()) {
-      toast.error("Please enter a comment");
-      return;
-    }
-    try {
-      await addComment({
-        variables: {
-          comment: {
-            userId: user._id,
-            content: comment.trim(),
-            startWordIndex: selectedText.startIndex,
-            endWordIndex: selectedText.endIndex,
-            postId: _id,
-            url: post.url,
-            quote: commentWithQuote ? selectedText.text : "",
-          },
-        },
-      });
-      toast.success("Comment added");
-    } catch (err) {
-      toast.error(`Error: ${err instanceof Error ? err.message : "Unknown"}`);
-    }
-  };
-
-  const handleAddQuote = async () => {
-    if (!ensureAuth()) return;
-    try {
-      await addQuote({
-        variables: {
-          quote: {
-            quote: selectedText.text,
-            postId: post._id,
-            quoter: user._id,
-            quoted: userId,
-            startWordIndex: selectedText.startIndex,
-            endWordIndex: selectedText.endIndex,
-          },
-        },
-      });
-      toast.success("Quoted successfully");
-    } catch (err) {
-      toast.error(`Error: ${err instanceof Error ? err.message : "Unknown"}`);
-    }
+    setPendingQuote({
+      postId: _id,
+      text: selection.text,
+      startIndex: selection.startIndex,
+      endIndex: selection.endIndex,
+    });
+    onOpenDiscussion?.();
   };
 
   const handleApprove = async () => {
@@ -677,30 +613,20 @@ export default function Post({
         >
           <VotingBoard
             content={post.text || ""}
-            onSelect={setSelectedText}
-            onDeselect={handleDeselect}
             highlights={true}
             votes={post.votes || []}
             focusedComment={linkedPassage}
             onHighlightClick={handleHighlightClick}
           >
-            {(selection) => (
+            {(selection, { dismiss }) => (
               <Suspense fallback={null}>
                 <VotingPopup
-                  votedBy={(post.votes || []).map(
-                    (v: PostVote): VotedByEntry => ({
-                      userId: v.user?._id || "",
-                      type: (v.type as VoteType) || "up",
-                      _id: v._id,
-                    })
-                  )}
-                  onVote={handleVoting}
-                  onAddComment={handleAddComment}
-                  onAddQuote={handleAddQuote}
+                  onVote={(vote) => handleVoting(vote, selection)}
+                  onQuote={handleQuote}
                   selectedText={selection}
-                  hasVoted={hasVoted}
-                  userVoteType={getUserVoteType() as VoteType | null}
+                  userVote={getUserVoteSummary()}
                   onDeleteVote={handleDeleteVote}
+                  onDismiss={dismiss}
                 />
               </Suspense>
             )}

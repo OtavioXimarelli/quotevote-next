@@ -177,6 +177,21 @@ describe('State Management (Zustand)', () => {
       // But original state object should not be mutated
       expect(initialState.selectedPage).toBe('home')
     })
+
+    it('stages and clears a pending quote for the Discussion composer', () => {
+      expect(useAppStore.getState().ui.pendingQuote).toBeNull()
+
+      const quote = { postId: 'post1', text: 'a passage', startIndex: 4, endIndex: 13 }
+      act(() => {
+        useAppStore.getState().setPendingQuote(quote)
+      })
+      expect(useAppStore.getState().ui.pendingQuote).toEqual(quote)
+
+      act(() => {
+        useAppStore.getState().setPendingQuote(null)
+      })
+      expect(useAppStore.getState().ui.pendingQuote).toBeNull()
+    })
   })
 
   describe('Store Reset', () => {

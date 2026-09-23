@@ -73,7 +73,14 @@ export default function SelectionPopover({
       window.addEventListener("orientationchange", computePopoverBox);
       window.addEventListener("scroll", computePopoverBox, { passive: true });
 
+      // Re-place the popover when its content grows (e.g. the Vote options open),
+      // so it stays clear of the selected passage.
+      const resizeObserver =
+        typeof ResizeObserver !== "undefined" ? new ResizeObserver(computePopoverBox) : null;
+      if (resizeObserver && popoverRef.current) resizeObserver.observe(popoverRef.current);
+
       return () => {
+        resizeObserver?.disconnect();
         cancelAnimationFrame(rafId1);
         cancelAnimationFrame(rafId2);
         window.removeEventListener("resize", computePopoverBox);
@@ -83,7 +90,7 @@ export default function SelectionPopover({
     }
     positionedRef.current = false;
     return undefined;
-  }, [showPopover, computePopoverBox]);
+  }, [showPopover, computePopoverBox, popoverRef]);
 
   if (!mounted) return null;
 
