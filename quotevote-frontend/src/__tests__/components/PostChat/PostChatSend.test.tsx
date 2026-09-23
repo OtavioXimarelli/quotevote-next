@@ -114,7 +114,9 @@ describe('PostChatSend', () => {
           data: mockCurrentUser,
         },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting: jest.fn(),
+        setPendingQuote: jest.fn(),
       }
       return selector(state)
     })
@@ -151,6 +153,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: mockCurrentUser },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting,
       }
       return selector(state)
@@ -182,6 +185,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: mockCurrentUser },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting,
       }
       return selector(state)
@@ -205,6 +209,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: mockCurrentUser },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting,
       }
       return selector(state)
@@ -226,6 +231,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: mockCurrentUser },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting,
       }
       return selector(state)
@@ -247,6 +253,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: mockCurrentUser },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting,
       }
       return selector(state)
@@ -289,6 +296,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: mockCurrentUser },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting,
       }
       return selector(state)
@@ -324,6 +332,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: mockCurrentUser },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting,
       }
       return selector(state)
@@ -351,6 +360,7 @@ describe('PostChatSend', () => {
       const state = {
         user: { data: {} },
         chat: { submitting: false },
+        ui: { pendingQuote: null },
         setChatSubmitting: jest.fn(),
       }
       return selector(state)
