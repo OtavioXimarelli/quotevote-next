@@ -40,6 +40,8 @@ describe('Executable GraphQL Schema', () => {
     expect(fields).toHaveProperty('hello');
     expect(fields).toHaveProperty('status');
     expect(fields).toHaveProperty('posts');
+    expect(fields).toHaveProperty('featuredPosts');
+    expect(fields.featuredPosts.resolve).toBeInstanceOf(Function);
     expect(fields).toHaveProperty('activities');
     expect(fields).toHaveProperty('tags');
     expect(fields).toHaveProperty('user');
@@ -101,13 +103,11 @@ describe('Executable GraphQL Schema', () => {
 
   it('executes a mocked heartbeat mutation through the production schema', async () => {
     const lastHeartbeat = new Date('2024-01-15T12:00:00.000Z');
-    const updateHeartbeatSpy = jest
-      .spyOn(Presence, 'updateHeartbeat')
-      .mockResolvedValue({
-        lastHeartbeat,
-        status: 'away',
-        statusMessage: 'In a meeting',
-      } as Awaited<ReturnType<typeof Presence.updateHeartbeat>>);
+    const updateHeartbeatSpy = jest.spyOn(Presence, 'updateHeartbeat').mockResolvedValue({
+      lastHeartbeat,
+      status: 'away',
+      statusMessage: 'In a meeting',
+    } as Awaited<ReturnType<typeof Presence.updateHeartbeat>>);
 
     try {
       const result = await graphql({
