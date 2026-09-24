@@ -1,4 +1,5 @@
 import { GraphQLError } from 'graphql';
+import { POST_RECORD_SELECT } from '~/data/utils/postPrismaMapper';
 import { postsResolver } from '~/data/resolvers/postsResolver';
 import type { GraphQLContext } from '~/types/graphql';
 
@@ -113,7 +114,46 @@ describe('postsResolver', () => {
         orderBy: [{ dayPoints: 'desc' }, { created: 'desc' }],
         skip: 0,
         take: 15,
+        select: POST_RECORD_SELECT,
       });
+    });
+
+    it('drops hashtag prefix matches that fail the word boundary', async () => {
+      const ctx = mockContext();
+      (ctx.prisma.post.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: postId,
+          userId,
+          tagId,
+          title: 'A #climate note',
+          text: 'Body',
+          votedBy: [],
+          created: new Date('2026-01-02T00:00:00.000Z'),
+        },
+        {
+          id: '507f1f77bcf86cd799439014',
+          userId,
+          tagId,
+          title: 'A #climatechange note',
+          text: 'Body',
+          votedBy: [],
+          created: new Date('2026-01-01T00:00:00.000Z'),
+        },
+      ]);
+      (ctx.prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await postsResolver.Query.posts(
+        null,
+        { searchKey: '#climate', limit: 15 },
+        ctx
+      );
+
+      expect(result.entities.map((post) => post._id)).toEqual([postId]);
+      expect(result.pagination.total_count).toBe(1);
+      expect(ctx.prisma.post.count).not.toHaveBeenCalled();
+      expect(ctx.prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ select: POST_RECORD_SELECT })
+      );
     });
 
     it('uses contains search for plain text and hashtags', async () => {

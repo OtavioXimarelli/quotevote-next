@@ -1,3 +1,4 @@
+import { POST_RECORD_SELECT } from '~/data/utils/postPrismaMapper';
 import { featuredPostsResolver } from '~/data/resolvers/featuredPostsResolver';
 import type { GraphQLContext } from '~/types/graphql';
 
@@ -69,6 +70,7 @@ describe('featuredPostsResolver', () => {
       orderBy: { featuredSlot: 'asc' },
       skip: 0,
       take: 5,
+      select: POST_RECORD_SELECT,
     });
     expect(result.entities[0]).toMatchObject({
       _id: postId,

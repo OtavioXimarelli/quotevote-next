@@ -1,3 +1,4 @@
+import { POST_RECORD_SELECT } from '~/data/utils/postPrismaMapper';
 import { attachPostCreators } from './utils/posts';
 import type { GraphQLContext, PostQueryArgs } from '~/types/graphql';
 import type * as Common from '~/types/common';
@@ -24,6 +25,7 @@ export const featuredPostsResolver = {
           orderBy: { featuredSlot: 'asc' },
           skip: offset,
           take: limit,
+          select: POST_RECORD_SELECT,
         }),
       ]);
 

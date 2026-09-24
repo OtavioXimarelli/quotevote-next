@@ -2,7 +2,11 @@
  * Unit tests for the Prisma → GraphQL Post mapper.
  */
 
-import { toGraphQLPost, type PrismaPostRecord } from '~/data/utils/postPrismaMapper';
+import {
+  POST_RECORD_SELECT,
+  toGraphQLPost,
+  type PrismaPostRecord,
+} from '~/data/utils/postPrismaMapper';
 
 function basePost(overrides: Partial<PrismaPostRecord> = {}): PrismaPostRecord {
   return {
@@ -35,6 +39,12 @@ describe('postPrismaMapper.toGraphQLPost', () => {
       _id: '507f1f77bcf86cd799439012',
       username: 'alice',
     });
+  });
+
+  it('omits legacy timestamp columns from the post select', () => {
+    expect(POST_RECORD_SELECT).not.toHaveProperty('createdAt');
+    expect(POST_RECORD_SELECT).not.toHaveProperty('updatedAt');
+    expect(POST_RECORD_SELECT).toMatchObject({ id: true, tagId: true, enableVoting: true });
   });
 
   it('sets creator to null when no author is provided', () => {

@@ -1,5 +1,6 @@
 import { GraphQLError } from 'graphql';
 import { Prisma } from '@prisma/client';
+import { POST_RECORD_SELECT } from '~/data/utils/postPrismaMapper';
 import { parseSearchQuery } from '../utils/parseSearchQuery';
 import { attachPostCreators } from './utils/posts';
 import type { GraphQLContext, PostQueryArgs } from '~/types/graphql';
@@ -16,10 +17,12 @@ function isObjectId(id: string): boolean {
  *
  * Supports:
  *  - `@username`  → filter posts by the user's id
- *  - `#hashtag`   → case-insensitive contains on `title` and `text`
- *  - plain text   → case-insensitive contains on `title` and `text`
- *    (Mongo `$text` is not available through Prisma; contains is the shared
- *    parameterized search pattern used by userResolver.searchUser)
+ *  - `#hashtag`   → case-insensitive contains on `title` and `text`, then a
+ *    `#tag\\b` boundary check so `#foo` does not match `#foobar`
+ *    (Prisma Mongo has no regex operator)
+ *  - plain text   → case-insensitive contains on `title` and `text`, ordered
+ *    by `created`. Mongo `$text` / `textScore` ranking is not available
+ *    through Prisma (same tradeoff as user search).
  *  - date range, interactions, userId, tagId, approved filters
  */
 async function buildPostQuery(
@@ -29,12 +32,14 @@ async function buildPostQuery(
   where: Prisma.PostWhereInput;
   orderBy: Prisma.PostOrderByWithRelationInput[];
   earlyEmpty: boolean;
+  hashtags: readonly string[];
 }> {
   const where: Prisma.PostWhereInput = { deleted: { not: true } };
   let orderBy: Prisma.PostOrderByWithRelationInput[] = [{ created: 'desc' }];
   const andConditions: Prisma.PostWhereInput[] = [];
 
   const searchKey = args.searchKey?.trim() ?? '';
+  let hashtags: readonly string[] = [];
 
   if (searchKey) {
     const parsed = parseSearchQuery(searchKey);
@@ -50,7 +55,7 @@ async function buildPostQuery(
       });
 
       if (userDocs.length === 0) {
-        return { where, orderBy, earlyEmpty: true };
+        return { where, orderBy, earlyEmpty: true, hashtags };
       }
 
       const userIds = userDocs.map((u) => u.id);
@@ -58,6 +63,7 @@ async function buildPostQuery(
     }
 
     if (parsed.hashtags.length > 0) {
+      hashtags = parsed.hashtags;
       for (const tag of parsed.hashtags) {
         andConditions.push({
           OR: [
@@ -121,7 +127,17 @@ async function buildPostQuery(
     orderBy = [{ dayPoints: 'desc' }, { created: 'desc' }];
   }
 
-  return { where, orderBy, earlyEmpty: false };
+  return { where, orderBy, earlyEmpty: false, hashtags };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Prisma `contains` cannot express `#tag\\b`, so apply the boundary after the query. */
+function matchesHashtagBoundary(title: string, text: string, tag: string): boolean {
+  const pattern = new RegExp(`#${escapeRegExp(tag)}\\b`, 'i');
+  return pattern.test(title) || pattern.test(text);
 }
 
 export const postsResolver = {
@@ -134,12 +150,40 @@ export const postsResolver = {
       const limit = args.limit ?? 15;
       const offset = args.offset ?? 0;
 
-      const { where, orderBy, earlyEmpty } = await buildPostQuery(args, context.prisma);
+      const { where, orderBy, earlyEmpty, hashtags } = await buildPostQuery(args, context.prisma);
 
       if (earlyEmpty) {
         return {
           entities: [],
           pagination: { total_count: 0, limit, offset },
+        };
+      }
+
+      // `contains` is a superset of `#tag\\b`. Filter before paging so `#foo`
+      // does not return `#foobar` and limit/offset still describe that set.
+      if (hashtags.length > 0) {
+        const candidates = await context.prisma.post.findMany({
+          where,
+          orderBy,
+          select: POST_RECORD_SELECT,
+        });
+        const matched = candidates.filter((post) =>
+          hashtags.every((tag) => matchesHashtagBoundary(post.title, post.text, tag))
+        );
+        const page = matched.slice(offset, offset + limit);
+
+        if (page.length === 0) {
+          return {
+            entities: [],
+            pagination: { total_count: matched.length, limit, offset },
+          };
+        }
+
+        const entities = await attachPostCreators(context.prisma, page);
+
+        return {
+          entities,
+          pagination: { total_count: matched.length, limit, offset },
         };
       }
 
@@ -150,6 +194,7 @@ export const postsResolver = {
           orderBy,
           skip: offset,
           take: limit,
+          select: POST_RECORD_SELECT,
         }),
       ]);
 

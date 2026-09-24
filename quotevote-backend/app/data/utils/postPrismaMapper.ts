@@ -63,6 +63,40 @@ export const POST_CREATOR_SELECT = {
 } as const;
 
 /**
+ * Columns safe to read from legacy posts.
+ * `createdAt` and `updatedAt` are required in the Prisma model, but legacy
+ * Mongoose posts have no timestamps. Selecting them throws P2032 when the
+ * stored value is null, so they stay out of this select.
+ */
+export const POST_RECORD_SELECT = {
+  id: true,
+  userId: true,
+  tagId: true,
+  title: true,
+  text: true,
+  url: true,
+  citationUrl: true,
+  attribution: true,
+  upvotes: true,
+  downvotes: true,
+  reported: true,
+  approved: true,
+  votedBy: true,
+  dayPoints: true,
+  pointTimestamp: true,
+  approvedBy: true,
+  rejectedBy: true,
+  reportedBy: true,
+  bookmarkedBy: true,
+  enableVoting: true,
+  messageRoomId: true,
+  urlId: true,
+  featuredSlot: true,
+  deleted: true,
+  created: true,
+} as const;
+
+/**
  * Translate a Prisma Post record into the GraphQL / Common.Post shape.
  */
 export function toGraphQLPost(
