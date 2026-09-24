@@ -136,6 +136,65 @@ describe("SelectionPopover", () => {
     expect(document.querySelector("#selectionPopover")).toBeInTheDocument();
   });
 
+  it("re-places itself above the selection when its content grows (#529)", async () => {
+    const OriginalResizeObserver = global.ResizeObserver;
+    const observed: Element[] = [];
+    let onResize: ResizeObserverCallback | null = null;
+    const disconnect = jest.fn();
+    global.ResizeObserver = class {
+      constructor(callback: ResizeObserverCallback) {
+        onResize = callback;
+      }
+      observe(target: Element) {
+        observed.push(target);
+      }
+      unobserve() {}
+      disconnect() {
+        disconnect();
+      }
+    } as unknown as typeof ResizeObserver;
+
+    try {
+      Object.defineProperty(window, "innerWidth", {
+        writable: true,
+        configurable: true,
+        value: 1200,
+      });
+      const popoverRef = createRef<HTMLDivElement>() as React.RefObject<HTMLDivElement | null>;
+      const resolveAnchorRect = jest.fn(
+        () => ({ top: 400, left: 100, width: 300, height: 20, bottom: 420, right: 400 }) as DOMRect
+      );
+      const { rerender } = render(
+        <SelectionPopover
+          {...makeProps({ showPopover: true, resolveAnchorRect, popoverRef, topOffset: 30 })}
+        />
+      );
+      const popover = popoverRef.current as HTMLDivElement;
+      let height = 60;
+      popover.getBoundingClientRect = () => ({ width: 320, height }) as DOMRect;
+
+      await act(async () => {
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
+      });
+      expect(observed).toContain(popover);
+      expect(popover.style.top).toBe(`${400 - 60 - 30}px`);
+
+      // The Vote panel opens and the popover grows: it must move up, not cover the selection.
+      height = 250;
+      await act(async () => {
+        onResize?.([], {} as ResizeObserver);
+      });
+      expect(popover.style.top).toBe(`${400 - 250 - 30}px`);
+      // Its bottom edge stays above the selection's top edge.
+      expect(parseFloat(popover.style.top) + height).toBeLessThanOrEqual(400);
+
+      rerender(<SelectionPopover {...makeProps({ showPopover: false, popoverRef })} />);
+      expect(disconnect).toHaveBeenCalled();
+    } finally {
+      global.ResizeObserver = OriginalResizeObserver;
+    }
+  });
+
   it("cleans up rAF on unmount/hide", () => {
     const { rerender, unmount } = render(
       <SelectionPopover {...makeProps({ showPopover: true })} />

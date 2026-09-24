@@ -42,7 +42,9 @@ export default function PostController({
     )
   }
 
-  if (loading) return <PostSkeleton />
+  // Only the first load shows the skeleton; refetches after a vote keep the post (and the
+  // open selection popup) on screen.
+  if (loading && !data) return <PostSkeleton />
 
   if (error) {
     router.push('/error')

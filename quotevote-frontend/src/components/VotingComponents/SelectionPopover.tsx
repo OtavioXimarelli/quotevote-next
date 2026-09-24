@@ -62,7 +62,8 @@ export default function SelectionPopover({
   }, [topOffset, resolveAnchorRect, popoverRef]);
 
   useEffect(() => {
-    if (showPopover) {
+    // Wait for the portal to mount so the ResizeObserver has an element to watch.
+    if (showPopover && mounted) {
       positionedRef.current = false;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset positioning state when popover opens
       setPositioned(false);
@@ -73,7 +74,14 @@ export default function SelectionPopover({
       window.addEventListener("orientationchange", computePopoverBox);
       window.addEventListener("scroll", computePopoverBox, { passive: true });
 
+      // Re-place the popover when its content grows (e.g. the Vote options open),
+      // so it stays clear of the selected passage.
+      const resizeObserver =
+        typeof ResizeObserver !== "undefined" ? new ResizeObserver(computePopoverBox) : null;
+      if (resizeObserver && popoverRef.current) resizeObserver.observe(popoverRef.current);
+
       return () => {
+        resizeObserver?.disconnect();
         cancelAnimationFrame(rafId1);
         cancelAnimationFrame(rafId2);
         window.removeEventListener("resize", computePopoverBox);
@@ -83,7 +91,7 @@ export default function SelectionPopover({
     }
     positionedRef.current = false;
     return undefined;
-  }, [showPopover, computePopoverBox]);
+  }, [showPopover, mounted, computePopoverBox, popoverRef]);
 
   if (!mounted) return null;
 

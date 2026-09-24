@@ -7,7 +7,14 @@
 
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
-import type { AppState, UserState, UIState, ChatState, FilterState } from '@/types/store';
+import type {
+  AppState,
+  UserState,
+  UIState,
+  ChatState,
+  FilterState,
+  PendingQuote,
+} from '@/types/store';
 import type { StagedChatRoom } from '@/types/chat';
 import type { LinkedPassage } from '@/types/discussionSplit';
 
@@ -41,6 +48,7 @@ const initialUIState: UIState = {
   sharedComment: null,
   mobileDiscussionOpen: false,
   linkedPassage: null,
+  pendingQuote: null,
 };
 
 const initialChatState: ChatState = {
@@ -92,6 +100,7 @@ interface AppStore extends AppState {
   setSharedComment: (commentId: string | null) => void;
   setMobileDiscussionOpen: (open: boolean) => void;
   setLinkedPassage: (passage: LinkedPassage | null) => void;
+  setPendingQuote: (quote: PendingQuote | null) => void;
 
   // Chat actions
   setChatSubmitting: (submitting: boolean) => void;
@@ -137,9 +146,11 @@ export const useAppStore = create<AppStore>()(
       user: { ...state.user, data },
     })),
 
+  // A staged quote belongs to the signed-in user, so it goes with the session.
   clearUserData: () =>
     set((state) => ({
       user: { ...state.user, data: {} },
+      ui: { ...state.ui, pendingQuote: null },
     })),
 
   setUserLoading: (loading) =>
@@ -153,11 +164,12 @@ export const useAppStore = create<AppStore>()(
     })),
 
   logout: () =>
-    set(() => ({
+    set((state) => ({
       user: {
         ...initialUserState,
         loading: false,
       },
+      ui: { ...state.ui, pendingQuote: null },
     })),
 
   updateAvatar: (avatar) =>
@@ -238,6 +250,14 @@ export const useAppStore = create<AppStore>()(
       ui: {
         ...state.ui,
         linkedPassage: passage,
+      },
+    })),
+
+  setPendingQuote: (quote) =>
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        pendingQuote: quote,
       },
     })),
 

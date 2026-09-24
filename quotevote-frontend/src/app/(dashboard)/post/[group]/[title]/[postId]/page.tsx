@@ -345,7 +345,13 @@ function InteractionSection({
       </div>
       {messageRoomId && (
         <div className="border-t border-border px-4 py-3 bg-background shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <PostChatSend messageRoomId={messageRoomId} title={postTitle ?? undefined} postId={postId} />
+          <PostChatSend
+            messageRoomId={messageRoomId}
+            title={postTitle ?? undefined}
+            postId={postId}
+            postUrl={post?.url ?? undefined}
+            postOwnerId={post?.userId ?? undefined}
+          />
         </div>
       )}
     </div>
