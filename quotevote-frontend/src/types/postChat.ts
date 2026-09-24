@@ -81,6 +81,10 @@ export interface PostChatSendProps {
   title?: string
   /** Post ID for creating room if needed */
   postId?: string
+  /** Post URL as stored by the API, sent with quote comments */
+  postUrl?: string
+  /** Post author's user ID, required to create a Quote */
+  postOwnerId?: string
 }
 
 /**

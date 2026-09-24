@@ -1,572 +1,200 @@
 /**
- * VotingPopup component tests
+ * VotingPopup component tests (issue #529: Quote / Vote selection popup)
  */
 
-import { render, screen, fireEvent, waitFor } from '@/__tests__/utils/test-utils'
-import VotingPopup from '@/components/VotingComponents/VotingPopup'
-import type { VotingPopupProps } from '@/types/voting'
+import { render, screen, fireEvent, waitFor } from "@/__tests__/utils/test-utils";
+import VotingPopup from "@/components/VotingComponents/VotingPopup";
+import type { VotingPopupProps } from "@/types/voting";
 
-// Mock the icons
-jest.mock('@/components/Icons/Like', () => ({
-  __esModule: true,
-  default: () => <div data-testid="like-icon">Like</div>,
-  Like: () => <div data-testid="like-icon">Like</div>,
-}))
+const selectedText = {
+  startIndex: 10,
+  endIndex: 42,
+  text: "a single sentence worth quoting",
+  points: 0,
+};
 
-jest.mock('@/components/Icons/Dislike', () => ({
-  __esModule: true,
-  default: () => <div data-testid="dislike-icon">Dislike</div>,
-  Dislike: () => <div data-testid="dislike-icon">Dislike</div>,
-}))
-
-jest.mock('@/components/Icons/Comment', () => ({
-  __esModule: true,
-  default: () => <div data-testid="comment-icon">Comment</div>,
-  Comment: () => <div data-testid="comment-icon">Comment</div>,
-}))
-
-jest.mock('@/components/Icons/Quote', () => ({
-  __esModule: true,
-  default: () => <div data-testid="quote-icon">Quote</div>,
-  Quote: () => <div data-testid="quote-icon">Quote</div>,
-}))
-
-// Mock the store
-jest.mock('@/store', () => ({
-  useAppStore: jest.fn(() => ({
-    user: {
-      data: {
-        _id: 'user123',
-        id: 'user123',
-      },
-    },
-  })),
-}))
-
-describe('VotingPopup', () => {
-  const defaultProps: VotingPopupProps = {
-    votedBy: [],
+function renderPopup(overrides: Partial<VotingPopupProps> = {}) {
+  const props: VotingPopupProps = {
     onVote: jest.fn(),
-    onAddComment: jest.fn(),
-    onAddQuote: jest.fn(),
-    selectedText: {
-      startIndex: 0,
-      endIndex: 5,
-      text: 'test',
-      points: 5,
-    },
-    hasVoted: false,
-    userVoteType: null,
-  }
-
-  it('renders all voting buttons', () => {
-    render(<VotingPopup {...defaultProps} />)
-    expect(screen.getByTestId('like-icon')).toBeInTheDocument()
-    expect(screen.getByTestId('dislike-icon')).toBeInTheDocument()
-    expect(screen.getByTestId('comment-icon')).toBeInTheDocument()
-    expect(screen.getByTestId('quote-icon')).toBeInTheDocument()
-  })
-
-  it('calls onVote when upvote option is selected', async () => {
-    const onVote = jest.fn()
-    render(<VotingPopup {...defaultProps} onVote={onVote} />)
-
-    // Click upvote button
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    expect(upvoteButton).toBeInTheDocument()
-    if (upvoteButton) {
-      fireEvent.click(upvoteButton)
-    }
-
-    // Wait for the expanded panel to appear
-    await waitFor(() => {
-      expect(screen.getByText('#true')).toBeInTheDocument()
-    })
-
-    // Click a vote option
-    const voteOption = screen.getByText('#true')
-    fireEvent.click(voteOption)
-
-    await waitFor(() => {
-      expect(onVote).toHaveBeenCalledWith({ type: 'up', tags: '#true' })
-    })
-  })
-
-  it('calls onAddComment when comment is submitted', async () => {
-    const onAddComment = jest.fn()
-    render(<VotingPopup {...defaultProps} onAddComment={onAddComment} />)
-
-    // Click comment button
-    const commentButton = screen
-      .getByTestId('comment-icon')
-      .closest('button')
-    expect(commentButton).toBeInTheDocument()
-    if (commentButton) {
-      fireEvent.click(commentButton)
-    }
-
-    // Wait for input to appear
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Type comment here')).toBeInTheDocument()
-    })
-
-    // Type comment
-    const input = screen.getByPlaceholderText('Type comment here')
-    fireEvent.change(input, { target: { value: 'Test comment' } })
-
-    // Submit comment
-    const sendButton = screen.getByText('Send')
-    fireEvent.click(sendButton)
-
-    await waitFor(() => {
-      expect(onAddComment).toHaveBeenCalledWith('Test comment', true)
-    })
-  })
-
-  it('calls onAddQuote when quote button is clicked', () => {
-    const onAddQuote = jest.fn()
-    render(<VotingPopup {...defaultProps} onAddQuote={onAddQuote} />)
-
-    const quoteButton = screen
-      .getByTestId('quote-icon')
-      .closest('button')
-    expect(quoteButton).toBeInTheDocument()
-    if (quoteButton) {
-      fireEvent.click(quoteButton)
-    }
-
-    expect(onAddQuote).toHaveBeenCalled()
-  })
-
-  it('does not disable voting buttons when user has already voted, allowing retraction', async () => {
-    const onDeleteVote = jest.fn()
-    render(<VotingPopup {...defaultProps} hasVoted={true} userVoteType="up" onDeleteVote={onDeleteVote} />)
-
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    expect(upvoteButton).not.toBeDisabled()
-
-    if (upvoteButton) {
-      fireEvent.click(upvoteButton)
-    }
-    await waitFor(() => {
-      expect(onDeleteVote).toHaveBeenCalled()
-    })
-  })
-
-  it('allows vote switching when user has already voted', async () => {
-    const onDeleteVote = jest.fn()
-    render(<VotingPopup {...defaultProps} hasVoted={true} userVoteType="up" onDeleteVote={onDeleteVote} />)
-
-    const downvoteButton = screen
-      .getByTestId('dislike-icon')
-      .closest('button')
-    expect(downvoteButton).not.toBeDisabled()
-
-    if (downvoteButton) {
-      fireEvent.click(downvoteButton)
-    }
-
-    // Wait for the opposite vote tags to expand
-    await waitFor(() => {
-      expect(screen.getByText('#false')).toBeInTheDocument()
-    })
-  })
-
-  it('calls onVote when downvote option is selected', async () => {
-    const onVote = jest.fn()
-    render(<VotingPopup {...defaultProps} onVote={onVote} />)
-
-    // Click downvote button
-    const downvoteButton = screen
-      .getByTestId('dislike-icon')
-      .closest('button')
-    expect(downvoteButton).toBeInTheDocument()
-    if (downvoteButton) {
-      fireEvent.click(downvoteButton)
-    }
-
-    // Wait for the expanded panel to appear
-    await waitFor(() => {
-      expect(screen.getByText('#false')).toBeInTheDocument()
-    })
-
-    // Click a vote option
-    const voteOption = screen.getByText('#false')
-    fireEvent.click(voteOption)
-
-    await waitFor(() => {
-      expect(onVote).toHaveBeenCalledWith({ type: 'down', tags: '#false' })
-    })
-  })
-
-  it('shows all upvote options when expanded', async () => {
-    render(<VotingPopup {...defaultProps} />)
-
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    if (upvoteButton) {
-      fireEvent.click(upvoteButton)
-    }
-
-    await waitFor(() => {
-      expect(screen.getByText('#true')).toBeInTheDocument()
-      expect(screen.getByText('#agree')).toBeInTheDocument()
-      expect(screen.getByText('#like')).toBeInTheDocument()
-    })
-  })
-
-  it('shows all downvote options when expanded', async () => {
-    render(<VotingPopup {...defaultProps} />)
-
-    const downvoteButton = screen
-      .getByTestId('dislike-icon')
-      .closest('button')
-    if (downvoteButton) {
-      fireEvent.click(downvoteButton)
-    }
-
-    await waitFor(() => {
-      expect(screen.getByText('#false')).toBeInTheDocument()
-      expect(screen.getByText('#disagree')).toBeInTheDocument()
-      expect(screen.getByText('#dislike')).toBeInTheDocument()
-    })
-  })
-
-  it('submits comment with Enter key', async () => {
-    const onAddComment = jest.fn()
-    render(<VotingPopup {...defaultProps} onAddComment={onAddComment} />)
-
-    // Click comment button
-    const commentButton = screen
-      .getByTestId('comment-icon')
-      .closest('button')
-    if (commentButton) {
-      fireEvent.click(commentButton)
-    }
-
-    // Wait for input to appear
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Type comment here')).toBeInTheDocument()
-    })
-
-    // Type comment
-    const input = screen.getByPlaceholderText('Type comment here')
-    fireEvent.change(input, { target: { value: 'Test comment' } })
-
-    // Press Enter - component uses onKeyDown
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13, keyCode: 13 })
-
-    await waitFor(() => {
-      expect(onAddComment).toHaveBeenCalledWith('Test comment', true)
-    }, { timeout: 2000 })
-  })
-
-  it('submits comment without quote when selectedText is empty', async () => {
-    const onAddComment = jest.fn()
-    const props = {
-      ...defaultProps,
-      selectedText: {
-        startIndex: 0,
-        endIndex: 0,
-        text: '',
-        points: 0,
-      },
-      onAddComment,
-    }
-    render(<VotingPopup {...props} />)
-
-    // Click comment button
-    const commentButton = screen
-      .getByTestId('comment-icon')
-      .closest('button')
-    if (commentButton) {
-      fireEvent.click(commentButton)
-    }
-
-    // Wait for input to appear
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Type comment here')).toBeInTheDocument()
-    })
-
-    // Type comment
-    const input = screen.getByPlaceholderText('Type comment here')
-    fireEvent.change(input, { target: { value: 'Test comment' } })
-
-    // Submit comment
-    const sendButton = screen.getByText('Send')
-    fireEvent.click(sendButton)
-
-    await waitFor(() => {
-      expect(onAddComment).toHaveBeenCalledWith('Test comment', false)
-    })
-  })
-
-  it('shows validation error when submitting an empty comment', async () => {
-    const onAddComment = jest.fn()
-    render(<VotingPopup {...defaultProps} onAddComment={onAddComment} />)
-
-    const commentButton = screen
-      .getByTestId('comment-icon')
-      .closest('button')
-    if (commentButton) {
-      fireEvent.click(commentButton)
-    }
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Type comment here')).toBeInTheDocument()
-    })
-
-    const sendButton = screen.getByText('Send')
-    fireEvent.click(sendButton)
-
-    await waitFor(() => {
-      expect(screen.getByText('Please enter a comment')).toBeInTheDocument()
-    })
-    expect(onAddComment).not.toHaveBeenCalled()
-  })
-
-  it('clears validation error when user types', async () => {
-    const onAddComment = jest.fn()
-    render(<VotingPopup {...defaultProps} onAddComment={onAddComment} />)
-
-    const commentButton = screen
-      .getByTestId('comment-icon')
-      .closest('button')
-    if (commentButton) {
-      fireEvent.click(commentButton)
-    }
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Type comment here')).toBeInTheDocument()
-    })
-
-    const sendButton = screen.getByText('Send')
-    fireEvent.click(sendButton)
-
-    await waitFor(() => {
-      expect(screen.getByText('Please enter a comment')).toBeInTheDocument()
-    })
-
-    const input = screen.getByPlaceholderText('Type comment here')
-    fireEvent.change(input, { target: { value: 'New comment' } })
-
-    await waitFor(() => {
-      expect(screen.queryByText('Please enter a comment')).not.toBeInTheDocument()
-    })
-  })
-
-  it('does not expand tags options when clicking user\'s active vote type', async () => {
-    const onVote = jest.fn()
-    const onDeleteVote = jest.fn()
-    render(
-      <VotingPopup
-        {...defaultProps}
-        hasVoted={true}
-        userVoteType="up"
-        onVote={onVote}
-        onDeleteVote={onDeleteVote}
-      />,
-    )
-
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    if (upvoteButton) {
-      fireEvent.click(upvoteButton)
-    }
-
-    // Should not expand or call onVote
-    await waitFor(() => {
-      expect(screen.queryByText('#true')).not.toBeInTheDocument()
-    })
-    expect(onVote).not.toHaveBeenCalled()
-  })
-
-  it('allows switching vote when user has downvoted and onDeleteVote is provided', async () => {
-    const onDeleteVote = jest.fn()
-    render(
-      <VotingPopup
-        {...defaultProps}
-        hasVoted={true}
-        userVoteType="down"
-        onDeleteVote={onDeleteVote}
-      />,
-    )
-
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    expect(upvoteButton).not.toBeDisabled()
-  })
-
-  it('calls onVote when changing from upvote to downvote via tag selection', async () => {
-    const onVote = jest.fn()
-    const onDeleteVote = jest.fn()
-    render(
-      <VotingPopup
-        {...defaultProps}
-        hasVoted={true}
-        userVoteType="up"
-        onVote={onVote}
-        onDeleteVote={onDeleteVote}
-      />,
-    )
-
-    const downvoteButton = screen.getByTestId('highlight-disagree-button')
-    fireEvent.click(downvoteButton)
-
-    await waitFor(() => {
-      expect(screen.getByText('#disagree')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByText('#disagree'))
-
-    await waitFor(() => {
-      expect(onVote).toHaveBeenCalledWith({ type: 'down', tags: '#disagree' })
-    })
-  })
-
-  it('disables buttons and shows clear restriction state when user has voted but onDeleteVote is not provided', () => {
-    render(
-      <VotingPopup
-        {...defaultProps}
-        hasVoted={true}
-        userVoteType="up"
-      />,
-    )
-
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    expect(upvoteButton).toBeDisabled()
-  })
-
-  it('handles window resize for responsive layout', () => {
-    // Mock window.innerWidth
-    Object.defineProperty(window, 'innerWidth', {
-      writable: true,
-      configurable: true,
-      value: 300, // Small width
-    })
-
-    render(<VotingPopup {...defaultProps} />)
-
-    // Component should handle resize
-    // The actual resize handling is tested through the component's behavior
-    expect(screen.getByTestId('like-icon')).toBeInTheDocument()
-  })
-
-  it('toggles expand state when clicking same button twice', async () => {
-    render(<VotingPopup {...defaultProps} />)
-
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    if (upvoteButton) {
-      // First click - should expand
-      fireEvent.click(upvoteButton)
-      await waitFor(() => {
-        expect(screen.getByText('#true')).toBeInTheDocument()
-      })
-
-      // Second click - should collapse (but the panel might still be visible due to transition)
-      fireEvent.click(upvoteButton)
-      // The panel visibility is controlled by CSS transitions, so we check the state
-      // by looking at the visibility style or waiting for it to disappear
-      await waitFor(() => {
-        const panel = document.querySelector('#popButtons')
-        if (panel) {
-          const style = window.getComputedStyle(panel)
-          // Panel should be hidden or have opacity 0
-          expect(style.visibility === 'hidden' || style.opacity === '0').toBe(true)
-        }
-      }, { timeout: 1000 })
-    }
-  })
-
-  it('collapses when switching between vote types', async () => {
-    render(<VotingPopup {...defaultProps} />)
-
-    // Click upvote
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    if (upvoteButton) {
-      fireEvent.click(upvoteButton)
-      await waitFor(() => {
-        expect(screen.getByText('#true')).toBeInTheDocument()
-      })
-
-      // Click downvote - should switch
-      const downvoteButton = screen
-        .getByTestId('dislike-icon')
-        .closest('button')
-      if (downvoteButton) {
-        fireEvent.click(downvoteButton)
-        await waitFor(() => {
-          expect(screen.queryByText('#true')).not.toBeInTheDocument()
-          expect(screen.getByText('#false')).toBeInTheDocument()
-        })
-      }
-    }
-  })
-
-  it('shows votedBy tooltip when user has voted', () => {
-    const votedBy = [
-      {
-        userId: 'user123',
-        type: 'up' as const,
-        _id: 'vote1',
-      },
-    ]
-
-    render(
-      <VotingPopup
-        {...defaultProps}
-        votedBy={votedBy}
-        hasVoted={false}
-      />,
-    )
-
-    // Should show tooltip indicating user has upvoted
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    expect(upvoteButton).toBeInTheDocument()
-  })
-
-  it('does not trigger onDeleteVote when clicking on showUpvoteTooltip/showDownvoteTooltip buttons since hasVoted is false', async () => {
-    const onDeleteVote = jest.fn()
-    const votedBy = [
-      {
-        userId: 'user123',
-        type: 'up' as const,
-        _id: 'vote1',
-      },
-    ]
-
-    render(
-      <VotingPopup
-        {...defaultProps}
-        votedBy={votedBy}
-        hasVoted={false}
-        onDeleteVote={onDeleteVote}
-      />,
-    )
-
-    const upvoteButton = screen
-      .getByTestId('like-icon')
-      .closest('button')
-    if (upvoteButton) {
-      fireEvent.click(upvoteButton)
-    }
-
-    expect(onDeleteVote).not.toHaveBeenCalled()
-  })
-})
-
+    onQuote: jest.fn(),
+    selectedText,
+    userVotes: [],
+    onRemoveVote: jest.fn(),
+    onDismiss: jest.fn(),
+    ...overrides,
+  };
+  render(<VotingPopup {...props} />);
+  return props;
+}
+
+const openVoteMode = () => fireEvent.click(screen.getByTestId("highlight-vote-mode-button"));
+
+describe("VotingPopup", () => {
+  it("shows Quote and Vote as the two primary actions and no Comment action", () => {
+    renderPopup();
+
+    expect(screen.getByRole("button", { name: "Quote" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Vote" })).toBeInTheDocument();
+    expect(screen.queryByTestId("highlight-comment-button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /comment/i })).not.toBeInTheDocument();
+  });
+
+  it("hides the vote responses until Vote is chosen", () => {
+    renderPopup();
+
+    expect(screen.queryByTestId("highlight-vote-options")).not.toBeInTheDocument();
+    expect(screen.getByTestId("highlight-vote-mode-button")).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(screen.getByTestId("highlight-vote-mode-button")).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+  });
+
+  it("marks Vote as the active mode and reveals the three paired rows", () => {
+    renderPopup();
+    openVoteMode();
+
+    const voteMode = screen.getByTestId("highlight-vote-mode-button");
+    expect(voteMode).toHaveAttribute("aria-pressed", "true");
+    expect(voteMode).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("highlight-quote-button")).toHaveAttribute("aria-pressed", "false");
+
+    const options = screen.getByTestId("highlight-vote-options");
+    expect(voteMode).toHaveAttribute("aria-controls", options.id);
+    const labels = Array.from(options.querySelectorAll("button")).map((b) => b.textContent);
+    // Positive on the left, negative on the right, row by row
+    expect(labels).toEqual(["Agree", "Disagree", "True", "False", "Like", "Dislike"]);
+  });
+
+  it("collapses the vote responses when Vote is pressed again", () => {
+    renderPopup();
+    openVoteMode();
+    openVoteMode();
+
+    expect(screen.queryByTestId("highlight-vote-options")).not.toBeInTheDocument();
+    expect(screen.getByTestId("highlight-vote-mode-button")).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+  });
+
+  it.each([
+    ["highlight-agree-button", "up", "#agree"],
+    ["highlight-disagree-button", "down", "#disagree"],
+    ["highlight-true-button", "up", "#true"],
+    ["highlight-false-button", "down", "#false"],
+    ["highlight-like-button", "up", "#like"],
+    ["highlight-dislike-button", "down", "#dislike"],
+  ])("applies %s as a %s vote tagged %s and keeps the popup open", async (testId, type, tags) => {
+    const props = renderPopup();
+    openVoteMode();
+
+    fireEvent.click(screen.getByTestId(testId));
+
+    await waitFor(() => expect(props.onVote).toHaveBeenCalledWith({ type, tags }));
+    expect(props.onRemoveVote).not.toHaveBeenCalled();
+    expect(props.onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("shows every response the user holds on the passage as pressed", () => {
+    renderPopup({
+      userVotes: [
+        { _id: "v1", type: "up", tags: "#true" },
+        { _id: "v2", type: "down", tags: "#dislike" },
+      ],
+    });
+    openVoteMode();
+
+    expect(screen.getByTestId("highlight-true-button")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("highlight-dislike-button")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("highlight-agree-button")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("highlight-like-button")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("removes only the pressed response's vote", async () => {
+    const props = renderPopup({
+      userVotes: [
+        { _id: "v1", type: "up", tags: "#true" },
+        { _id: "v2", type: "down", tags: "#dislike" },
+      ],
+    });
+    openVoteMode();
+
+    fireEvent.click(screen.getByTestId("highlight-dislike-button"));
+
+    await waitFor(() => expect(props.onRemoveVote).toHaveBeenCalledWith("v2"));
+    expect(props.onRemoveVote).toHaveBeenCalledTimes(1);
+    expect(props.onVote).not.toHaveBeenCalled();
+  });
+
+  it("adds a response in another pair without removing the existing one", async () => {
+    const props = renderPopup({ userVotes: [{ _id: "v1", type: "up", tags: "#true" }] });
+    openVoteMode();
+
+    fireEvent.click(screen.getByTestId("highlight-like-button"));
+
+    await waitFor(() => expect(props.onVote).toHaveBeenCalledWith({ type: "up", tags: "#like" }));
+    expect(props.onRemoveVote).not.toHaveBeenCalled();
+  });
+
+  it("disables the responses while a vote is being saved", async () => {
+    let finish: () => void = () => {};
+    const onVote = jest.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    renderPopup({ onVote });
+    openVoteMode();
+
+    fireEvent.click(screen.getByTestId("highlight-true-button"));
+    expect(screen.getByTestId("highlight-true-button")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByTestId("highlight-like-button")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("highlight-true-button"));
+    expect(onVote).toHaveBeenCalledTimes(1);
+
+    finish();
+    await waitFor(() => expect(screen.getByTestId("highlight-like-button")).toBeEnabled());
+  });
+
+  it("sends the selected passage to the composer and closes the popup on Quote", () => {
+    const props = renderPopup();
+
+    fireEvent.click(screen.getByTestId("highlight-quote-button"));
+
+    expect(props.onQuote).toHaveBeenCalledWith(selectedText);
+    expect(props.onDismiss).toHaveBeenCalled();
+    expect(props.onVote).not.toHaveBeenCalled();
+  });
+
+  it("keeps Quote and Vote mutually exclusive", () => {
+    renderPopup({ onDismiss: undefined });
+    openVoteMode();
+
+    fireEvent.click(screen.getByTestId("highlight-quote-button"));
+
+    expect(screen.getByTestId("highlight-quote-button")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("highlight-vote-mode-button")).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(screen.queryByTestId("highlight-vote-options")).not.toBeInTheDocument();
+  });
+
+  it("prevents mouse presses from clearing the text selection", () => {
+    renderPopup();
+    const popup = screen.getByTestId("selection-popup");
+
+    const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    popup.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("is keyboard operable with native buttons", () => {
+    renderPopup();
+
+    const buttons = screen.getAllByRole("button");
+    buttons.forEach((button) => expect(button.tagName).toBe("BUTTON"));
+    expect(screen.getByRole("group", { name: "Passage actions" })).toBeInTheDocument();
+  });
+});

@@ -9,7 +9,7 @@
  * - Page state management via setSelectedPage
  */
 
-import { render, screen } from '../../utils/test-utils'
+import { render, screen, fireEvent, act } from '../../utils/test-utils'
 import PostController from '../../../components/Post/PostController'
 import { GET_POST } from '@/graphql/queries'
 
@@ -49,8 +49,13 @@ jest.mock('../../../components/Post/PostSkeleton', () => ({
 // Mock Post component
 jest.mock('../../../components/Post/Post', () => ({
   __esModule: true,
-  default: ({ post }: { post: { title?: string } }) => (
-    <div data-testid="post-component">{post.title}</div>
+  default: ({ post, refetchPost }: { post: { title?: string }; refetchPost?: () => void }) => (
+    <div data-testid="post-component">
+      {post.title}
+      <button type="button" onClick={() => refetchPost?.()}>
+        refetch
+      </button>
+    </div>
   ),
 }))
 
@@ -87,6 +92,26 @@ describe('PostController Component', () => {
       ]
       render(<PostController postId="test-post-id" />, { mocks })
       expect(screen.getByTestId('post-skeleton')).toBeInTheDocument()
+    })
+
+    it('keeps the post on screen while it refetches after a vote (#529)', async () => {
+      const request = { query: GET_POST, variables: { postId: 'test-post-id' } }
+      const mocks = [
+        { request, result: { data: { post: mockPost } } },
+        { request, result: { data: { post: { ...mockPost, title: 'Refetched' } } }, delay: 200 },
+      ]
+      render(<PostController postId="test-post-id" />, { mocks })
+      expect(await screen.findByText('Test Post')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'refetch' }))
+      // Let the refetch start (loading flips a tick later) before checking.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      })
+
+      expect(screen.queryByTestId('post-skeleton')).not.toBeInTheDocument()
+      expect(screen.getByTestId('post-component')).toBeInTheDocument()
+      expect(await screen.findByText('Refetched')).toBeInTheDocument()
     })
   })
 

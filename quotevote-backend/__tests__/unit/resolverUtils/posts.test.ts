@@ -2,13 +2,20 @@
  * Test suite for post resolver utilities.
  */
 
-import Post from '~/data/models/Post';
-import { updateTrending } from '~/data/resolvers/utils/posts';
+import { attachPostCreators, updateTrending } from '~/data/resolvers/utils/posts';
+import type { PrismaClient } from '@prisma/client';
 
-jest.mock('~/data/models/Post', () => ({
-  findById: jest.fn(),
-  updateOne: jest.fn().mockResolvedValue({}),
-}));
+function mockPrisma() {
+  return {
+    post: {
+      findUnique: jest.fn(),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    user: {
+      findMany: jest.fn(),
+    },
+  } as unknown as Pick<PrismaClient, 'post' | 'user'>;
+}
 
 describe('posts resolver utilities', () => {
   beforeEach(() => {
@@ -17,101 +24,105 @@ describe('posts resolver utilities', () => {
 
   describe('updateTrending', () => {
     it('should do nothing if post is not found', async () => {
-      (Post.findById as jest.Mock).mockResolvedValue(null);
+      const prisma = mockPrisma();
+      (prisma.post.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await updateTrending('nonexistent');
+      await updateTrending(prisma, 'nonexistent');
 
-      expect(Post.findById).toHaveBeenCalledWith('nonexistent');
-      expect(Post.updateOne).not.toHaveBeenCalled();
+      expect(prisma.post.findUnique).toHaveBeenCalledWith({
+        where: { id: 'nonexistent' },
+        select: { pointTimestamp: true, dayPoints: true },
+      });
+      expect(prisma.post.update).not.toHaveBeenCalled();
     });
 
     it('should increment dayPoints if pointTimestamp is within 24 hours', async () => {
+      const prisma = mockPrisma();
       const recentDate = new Date();
-      recentDate.setHours(recentDate.getHours() - 1); // 1 hour ago
+      recentDate.setHours(recentDate.getHours() - 1);
 
-      (Post.findById as jest.Mock).mockResolvedValue({
-        _id: 'post1',
+      (prisma.post.findUnique as jest.Mock).mockResolvedValue({
         pointTimestamp: recentDate,
         dayPoints: 5,
       });
 
-      await updateTrending('post1');
+      await updateTrending(prisma, 'post1');
 
-      expect(Post.updateOne).toHaveBeenCalledWith(
-        { _id: 'post1' },
-        {
-          $set: {
-            pointTimestamp: expect.any(Date),
-            dayPoints: 6,
-          },
-        }
-      );
+      expect(prisma.post.update).toHaveBeenCalledWith({
+        where: { id: 'post1' },
+        data: {
+          pointTimestamp: expect.any(Date),
+          dayPoints: 6,
+        },
+      });
     });
 
     it('should reset dayPoints to 1 if pointTimestamp is older than 24 hours', async () => {
+      const prisma = mockPrisma();
       const oldDate = new Date();
-      oldDate.setDate(oldDate.getDate() - 2); // 2 days ago
+      oldDate.setDate(oldDate.getDate() - 2);
 
-      (Post.findById as jest.Mock).mockResolvedValue({
-        _id: 'post2',
+      (prisma.post.findUnique as jest.Mock).mockResolvedValue({
         pointTimestamp: oldDate,
         dayPoints: 100,
       });
 
-      await updateTrending('post2');
+      await updateTrending(prisma, 'post2');
 
-      expect(Post.updateOne).toHaveBeenCalledWith(
-        { _id: 'post2' },
-        {
-          $set: {
-            pointTimestamp: expect.any(Date),
-            dayPoints: 1,
-          },
-        }
-      );
+      expect(prisma.post.update).toHaveBeenCalledWith({
+        where: { id: 'post2' },
+        data: {
+          pointTimestamp: expect.any(Date),
+          dayPoints: 1,
+        },
+      });
     });
 
     it('should reset dayPoints when pointTimestamp is not a Date', async () => {
-      (Post.findById as jest.Mock).mockResolvedValue({
-        _id: 'post3',
+      const prisma = mockPrisma();
+      (prisma.post.findUnique as jest.Mock).mockResolvedValue({
         pointTimestamp: 'not-a-date',
         dayPoints: 10,
       });
 
-      await updateTrending('post3');
+      await updateTrending(prisma, 'post3');
 
-      // pointTimestamp is not instanceof Date, so isWithin24hrs is false → reset path
-      expect(Post.updateOne).toHaveBeenCalledWith(
-        { _id: 'post3' },
-        {
-          $set: {
-            pointTimestamp: expect.any(Date),
-            dayPoints: 1,
-          },
-        }
-      );
+      expect(prisma.post.update).toHaveBeenCalledWith({
+        where: { id: 'post3' },
+        data: {
+          pointTimestamp: expect.any(Date),
+          dayPoints: 1,
+        },
+      });
     });
 
     it('should handle post with no existing dayPoints (null/undefined)', async () => {
+      const prisma = mockPrisma();
       const recentDate = new Date();
 
-      (Post.findById as jest.Mock).mockResolvedValue({
-        _id: 'post4',
+      (prisma.post.findUnique as jest.Mock).mockResolvedValue({
         pointTimestamp: recentDate,
         dayPoints: undefined,
       });
 
-      await updateTrending('post4');
+      await updateTrending(prisma, 'post4');
 
-      expect(Post.updateOne).toHaveBeenCalledWith(
-        { _id: 'post4' },
-        {
-          $set: {
-            pointTimestamp: expect.any(Date),
-            dayPoints: 1, // (undefined ?? 0) + 1
-          },
-        }
-      );
+      expect(prisma.post.update).toHaveBeenCalledWith({
+        where: { id: 'post4' },
+        data: {
+          pointTimestamp: expect.any(Date),
+          dayPoints: 1,
+        },
+      });
+    });
+  });
+
+  describe('attachPostCreators', () => {
+    it('returns an empty array without querying users', async () => {
+      const prisma = mockPrisma();
+      const result = await attachPostCreators(prisma, []);
+      expect(result).toEqual([]);
+      expect(prisma.user.findMany).not.toHaveBeenCalled();
     });
   });
 });

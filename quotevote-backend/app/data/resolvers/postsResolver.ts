@@ -1,129 +1,143 @@
-import mongoose from 'mongoose';
 import { GraphQLError } from 'graphql';
-import Post from '../models/Post';
-import User from '../models/User';
+import { Prisma } from '@prisma/client';
+import { POST_RECORD_SELECT } from '~/data/utils/postPrismaMapper';
 import { parseSearchQuery } from '../utils/parseSearchQuery';
-import type { PostQueryArgs } from '~/types/graphql';
+import { attachPostCreators } from './utils/posts';
+import type { GraphQLContext, PostQueryArgs } from '~/types/graphql';
 import type * as Common from '~/types/common';
 
+const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/;
+
+function isObjectId(id: string): boolean {
+  return OBJECT_ID_PATTERN.test(id);
+}
+
 /**
- * Build a Mongoose filter object from PostQueryArgs.
+ * Build a Prisma where/orderBy from PostQueryArgs.
  *
  * Supports:
- *  - `@username`  → filter posts by the user's `_id`
- *  - `#hashtag`   → case-insensitive regex on `title` and `text`
- *  - plain text   → MongoDB `$text` full-text search
- *  - date range, friends-only, interactions, userId, tagId, approved filters
+ *  - `@username`  → filter posts by the user's id
+ *  - `#hashtag`   → case-insensitive contains on `title` and `text`, then a
+ *    `#tag\\b` boundary check so `#foo` does not match `#foobar`
+ *    (Prisma Mongo has no regex operator)
+ *  - plain text   → case-insensitive contains on `title` and `text`, ordered
+ *    by `created`. Mongo `$text` / `textScore` ranking is not available
+ *    through Prisma (same tradeoff as user search).
+ *  - date range, interactions, userId, tagId, approved filters
  */
-async function buildPostFilter(
+async function buildPostQuery(
   args: PostQueryArgs,
-): Promise<{ filter: Record<string, unknown>; sort: Record<string, unknown>; earlyEmpty: boolean }> {
-  const filter: Record<string, unknown> = { deleted: { $ne: true } };
-  let sort: Record<string, unknown> = { created: -1 };
-  let earlyEmpty = false;
+  prisma: GraphQLContext['prisma']
+): Promise<{
+  where: Prisma.PostWhereInput;
+  orderBy: Prisma.PostOrderByWithRelationInput[];
+  earlyEmpty: boolean;
+  hashtags: readonly string[];
+}> {
+  const where: Prisma.PostWhereInput = { deleted: { not: true } };
+  let orderBy: Prisma.PostOrderByWithRelationInput[] = [{ created: 'desc' }];
+  const andConditions: Prisma.PostWhereInput[] = [];
 
   const searchKey = args.searchKey?.trim() ?? '';
+  let hashtags: readonly string[] = [];
 
   if (searchKey) {
     const parsed = parseSearchQuery(searchKey);
 
-    // ── @username filtering ───────────────────────────────────────────
     if (parsed.usernames.length > 0) {
-      // Look up user IDs for all parsed usernames
-      const userDocs = await User.find({
-        username: { $in: parsed.usernames.map((u) => new RegExp(`^${u}$`, 'i')) },
-      })
-        .select('_id')
-        .lean();
-
-      if (userDocs.length === 0) {
-        // No matching users → return empty immediately
-        earlyEmpty = true;
-        return { filter, sort, earlyEmpty };
-      }
-
-      const userIds = userDocs.map((u) => u._id);
-
-      if (userIds.length === 1) {
-        filter.userId = userIds[0];
-      } else {
-        filter.userId = { $in: userIds };
-      }
-    }
-
-    // ── #hashtag filtering ────────────────────────────────────────────
-    if (parsed.hashtags.length > 0) {
-      // Build case-insensitive regex patterns for each hashtag
-      const hashtagConditions = parsed.hashtags.map((tag) => {
-        const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = new RegExp(`#${escapedTag}\\b`, 'i');
-        return {
-          $or: [{ title: pattern }, { text: pattern }],
-        };
+      const userDocs = await prisma.user.findMany({
+        where: {
+          OR: parsed.usernames.map((username) => ({
+            username: { equals: username, mode: 'insensitive' },
+          })),
+        },
+        select: { id: true },
       });
 
-      if (hashtagConditions.length === 1) {
-        Object.assign(filter, hashtagConditions[0]);
-      } else {
-        // All hashtags must match
-        const existing = (filter.$and as Record<string, unknown>[] | undefined) ?? [];
-        filter.$and = [...existing, ...hashtagConditions];
+      if (userDocs.length === 0) {
+        return { where, orderBy, earlyEmpty: true, hashtags };
+      }
+
+      const userIds = userDocs.map((u) => u.id);
+      where.userId = userIds.length === 1 ? userIds[0] : { in: userIds };
+    }
+
+    if (parsed.hashtags.length > 0) {
+      hashtags = parsed.hashtags;
+      for (const tag of parsed.hashtags) {
+        andConditions.push({
+          OR: [
+            { title: { contains: `#${tag}`, mode: 'insensitive' } },
+            { text: { contains: `#${tag}`, mode: 'insensitive' } },
+          ],
+        });
       }
     }
 
-    // ── Plain text search ─────────────────────────────────────────────
     if (parsed.textQuery) {
-      filter.$text = { $search: parsed.textQuery };
-      sort = { score: { $meta: 'textScore' }, created: -1 };
+      andConditions.push({
+        OR: [
+          { title: { contains: parsed.textQuery, mode: 'insensitive' } },
+          { text: { contains: parsed.textQuery, mode: 'insensitive' } },
+        ],
+      });
     }
   }
 
-  // ── Date range filters ────────────────────────────────────────────────
   if (args.startDateRange || args.endDateRange) {
-    const dateFilter: Record<string, Date> = {};
-    if (args.startDateRange) dateFilter.$gte = new Date(args.startDateRange);
-    if (args.endDateRange) dateFilter.$lte = new Date(args.endDateRange);
-    filter.created = dateFilter;
+    where.created = {
+      ...(args.startDateRange ? { gte: new Date(args.startDateRange) } : {}),
+      ...(args.endDateRange ? { lte: new Date(args.endDateRange) } : {}),
+    };
   }
 
-  // ── userId filter (direct — from query args, separate from @username) ─
   if (args.userId) {
-    if (!mongoose.Types.ObjectId.isValid(args.userId)) {
+    if (!isObjectId(args.userId)) {
       throw new GraphQLError('Invalid userId format', {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
-    filter.userId = new mongoose.Types.ObjectId(args.userId);
+    where.userId = args.userId;
   }
 
-  // ── Tag filter ──────────────────────────────────────────────────────
   if (args.tagId) {
-    if (!mongoose.Types.ObjectId.isValid(args.tagId)) {
+    if (!isObjectId(args.tagId)) {
       throw new GraphQLError('Invalid tagId format', {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
-    filter.groupId = new mongoose.Types.ObjectId(args.tagId);
+    where.tagId = args.tagId;
   }
 
-  // ── Approved filter ───────────────────────────────────────────────────
   if (args.approved !== undefined) {
-    filter.approved = args.approved ? { $gt: 0 } : { $exists: false };
+    where.approved = args.approved ? { gt: 0 } : null;
   }
 
-  // ── Sort order ────────────────────────────────────────────────────────
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
+  }
+
   if (args.sortOrder === 'asc') {
-    sort = { created: 1 };
+    orderBy = [{ created: 'asc' }];
   } else if (args.sortOrder === 'desc') {
-    sort = { created: -1 };
+    orderBy = [{ created: 'desc' }];
   }
 
-  // ── Interactions (most popular) ───────────────────────────────────────
   if (args.interactions) {
-    sort = { dayPoints: -1, created: -1 };
+    orderBy = [{ dayPoints: 'desc' }, { created: 'desc' }];
   }
 
-  return { filter, sort, earlyEmpty };
+  return { where, orderBy, earlyEmpty: false, hashtags };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Prisma `contains` cannot express `#tag\\b`, so apply the boundary after the query. */
+function matchesHashtagBoundary(title: string, text: string, tag: string): boolean {
+  const pattern = new RegExp(`#${escapeRegExp(tag)}\\b`, 'i');
+  return pattern.test(title) || pattern.test(text);
 }
 
 export const postsResolver = {
@@ -131,11 +145,12 @@ export const postsResolver = {
     posts: async (
       _parent: unknown,
       args: PostQueryArgs,
+      context: GraphQLContext
     ): Promise<Common.PaginatedResult<Common.Post>> => {
       const limit = args.limit ?? 15;
       const offset = args.offset ?? 0;
 
-      const { filter, sort, earlyEmpty } = await buildPostFilter(args);
+      const { where, orderBy, earlyEmpty, hashtags } = await buildPostQuery(args, context.prisma);
 
       if (earlyEmpty) {
         return {
@@ -144,13 +159,43 @@ export const postsResolver = {
         };
       }
 
+      // `contains` is a superset of `#tag\\b`. Filter before paging so `#foo`
+      // does not return `#foobar` and limit/offset still describe that set.
+      if (hashtags.length > 0) {
+        const candidates = await context.prisma.post.findMany({
+          where,
+          orderBy,
+          select: POST_RECORD_SELECT,
+        });
+        const matched = candidates.filter((post) =>
+          hashtags.every((tag) => matchesHashtagBoundary(post.title, post.text, tag))
+        );
+        const page = matched.slice(offset, offset + limit);
+
+        if (page.length === 0) {
+          return {
+            entities: [],
+            pagination: { total_count: matched.length, limit, offset },
+          };
+        }
+
+        const entities = await attachPostCreators(context.prisma, page);
+
+        return {
+          entities,
+          pagination: { total_count: matched.length, limit, offset },
+        };
+      }
+
       const [totalPosts, posts] = await Promise.all([
-        Post.countDocuments(filter),
-        Post.find(filter)
-          .sort(sort as Record<string, 1 | -1>)
-          .skip(offset)
-          .limit(limit)
-          .lean(),
+        context.prisma.post.count({ where }),
+        context.prisma.post.findMany({
+          where,
+          orderBy,
+          skip: offset,
+          take: limit,
+          select: POST_RECORD_SELECT,
+        }),
       ]);
 
       if (posts.length === 0) {
@@ -160,28 +205,10 @@ export const postsResolver = {
         };
       }
 
-      // Hydrate creator data for each post
-      const uniqueUserIds = [
-        ...new Set(posts.map((p) => p.userId.toString())),
-      ].map((id) => new mongoose.Types.ObjectId(id));
-
-      const creators = await User.find({ _id: { $in: uniqueUserIds } })
-        .select('_id name username avatar')
-        .lean();
-
-      const creatorMap = new Map(creators.map((c) => [c._id.toString(), c]));
-
-      const entities = posts.map((post) => ({
-        ...post,
-        _id: post._id.toString(),
-        userId: post.userId.toString(),
-        tagId: post.groupId.toString(),
-        creator: creatorMap.get(post.userId.toString()) ?? null,
-        votedBy: Array.isArray(post.votedBy) ? post.votedBy : [],
-      }));
+      const entities = await attachPostCreators(context.prisma, posts);
 
       return {
-        entities: entities as unknown as Common.Post[],
+        entities,
         pagination: { total_count: totalPosts, limit, offset },
       };
     },

@@ -7,7 +7,12 @@ import { parseDomSelection } from "@/lib/utils/parserDom";
 import { cn } from "@/lib/utils";
 import { scrollLinkedPassageIntoView } from "@/lib/utils/discussionSplit";
 import SelectionPopover from "./SelectionPopover";
-import type { VotingBoardProps, SelectedText, SelectionPhase } from "@/types/voting";
+import type {
+  VotingBoardProps,
+  SelectedText,
+  SelectionPhase,
+  SelectionPopupContentProps,
+} from "@/types/voting";
 
 const LINKED_PASSAGE_CLASS =
   "bg-[#52b274]/20 text-foreground rounded-sm box-decoration-clone cursor-pointer px-0.5";
@@ -60,6 +65,10 @@ function RetainedPassageMark({
       {children}
     </mark>
   );
+}
+
+function SelectionPopupContent({ render, selection, dismiss }: SelectionPopupContentProps) {
+  return <>{render(selection, { dismiss })}</>;
 }
 
 function isCoarseTouchEnvironment(): boolean {
@@ -606,6 +615,11 @@ export default function VotingBoard({
   const showDesktopPopover = phase === "toolbar" && !touchMode && selection.text.length > 0;
   const effectiveShowPopover = showRetainedPopover || showDesktopPopover;
 
+  const dismissPopover = useCallback(() => {
+    clearNativeSelection();
+    resetToIdle();
+  }, [clearNativeSelection, resetToIdle]);
+
   const renderRetained = () => (
     <Highlighter
       style={{ whiteSpace: "pre-line" }}
@@ -681,7 +695,9 @@ export default function VotingBoard({
         resolveAnchorRect={resolveAnchorRect}
         popoverRef={popoverRef}
       >
-        {children && children(selection)}
+        {children && (
+          <SelectionPopupContent render={children} selection={selection} dismiss={dismissPopover} />
+        )}
       </SelectionPopover>
     </div>
   );

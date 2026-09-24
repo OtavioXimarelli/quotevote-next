@@ -84,6 +84,7 @@ describe('Sidebar Component', () => {
         sharedComment: null,
         mobileDiscussionOpen: false,
         linkedPassage: null,
+        pendingQuote: null,
       },
     });
 

@@ -39,6 +39,8 @@ describe('Executable GraphQL Schema', () => {
     expect(fields).toHaveProperty('hello');
     expect(fields).toHaveProperty('status');
     expect(fields).toHaveProperty('posts');
+    expect(fields).toHaveProperty('featuredPosts');
+    expect(fields.featuredPosts.resolve).toBeInstanceOf(Function);
     expect(fields).toHaveProperty('activities');
     expect(fields).toHaveProperty('tags');
     expect(fields).toHaveProperty('user');

@@ -47,6 +47,16 @@ export interface UIState {
   mobileDiscussionOpen: boolean;
   /** Quote-text range linked to the currently selected discussion comment. */
   linkedPassage: LinkedPassage | null;
+  /** Passage chosen with Quote in the selection popup, waiting in the Discussion composer. */
+  pendingQuote: PendingQuote | null;
+}
+
+/** A selected post passage staged in the Discussion composer (issue #529). */
+export interface PendingQuote {
+  postId: string;
+  text: string;
+  startIndex: number;
+  endIndex: number;
 }
 
 // Chat state interface
