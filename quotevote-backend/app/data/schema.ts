@@ -14,6 +14,7 @@ import { quoteResolver } from './resolvers/quoteResolver';
 import { notificationResolver } from './resolvers/notificationResolver';
 import { activityResolver } from './resolvers/activityResolver';
 import { heartbeatResolver } from './resolvers/heartbeatResolver';
+import { typingResolver } from './resolvers/typingResolver';
 import { reactionResolver } from './resolvers/reactionResolver';
 
 export const schema = makeExecutableSchema({
@@ -40,6 +41,7 @@ export const schema = makeExecutableSchema({
     notificationResolver,
     activityResolver,
     heartbeatResolver,
+    typingResolver,
     reactionResolver,
   ],
 });

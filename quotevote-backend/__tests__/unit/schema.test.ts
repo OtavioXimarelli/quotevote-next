@@ -7,7 +7,6 @@ import {
   printSchema,
   validateSchema,
 } from 'graphql';
-import Presence from '~/data/models/Presence';
 import { schema } from '~/data/schema';
 
 describe('Executable GraphQL Schema', () => {
@@ -87,8 +86,10 @@ describe('Executable GraphQL Schema', () => {
 
     expect(queryFields.posts.resolve).toBeInstanceOf(Function);
     expect(queryFields.user.resolve).toBeInstanceOf(Function);
+    expect(queryFields.getTypingUsers.resolve).toBeInstanceOf(Function);
     expect(mutationFields.updateUser.resolve).toBeInstanceOf(Function);
     expect(mutationFields.heartbeat.resolve).toBeInstanceOf(Function);
+    expect(mutationFields.updateTyping.resolve).toBeInstanceOf(Function);
   });
 
   it('executes representative safe queries through the production schema', async () => {
@@ -103,16 +104,20 @@ describe('Executable GraphQL Schema', () => {
 
   it('executes a mocked heartbeat mutation through the production schema', async () => {
     const lastHeartbeat = new Date('2024-01-15T12:00:00.000Z');
-    const updateHeartbeatSpy = jest.spyOn(Presence, 'updateHeartbeat').mockResolvedValue({
+    const findUnique = jest.fn().mockResolvedValue({
+      status: 'away',
+      preferredStatus: 'away',
+      preferredStatusMessage: 'In a meeting',
+    });
+    const update = jest.fn().mockResolvedValue({
       lastHeartbeat,
       status: 'away',
       statusMessage: 'In a meeting',
-    } as Awaited<ReturnType<typeof Presence.updateHeartbeat>>);
+    });
 
-    try {
-      const result = await graphql({
-        schema,
-        source: `
+    const result = await graphql({
+      schema,
+      source: `
           mutation {
             heartbeat {
               success
@@ -122,25 +127,103 @@ describe('Executable GraphQL Schema', () => {
             }
           }
         `,
+      contextValue: {
+        user: {
+          _id: '60d5ec49ad414d7a8d5464a0',
+        },
+        prisma: {
+          presence: { findUnique, update },
+        },
+      },
+    });
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { userId: '60d5ec49ad414d7a8d5464a0' },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { userId: '60d5ec49ad414d7a8d5464a0' },
+      data: { lastHeartbeat: expect.any(Date), lastSeen: expect.any(Date) },
+    });
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toEqual({
+      heartbeat: {
+        success: true,
+        timestamp: lastHeartbeat.toISOString(),
+        status: 'away',
+        statusMessage: 'In a meeting',
+      },
+    });
+  });
+
+  it('executes updateTyping through the production schema', async () => {
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+    const upsert = jest.fn().mockResolvedValue({});
+    const publish = jest.fn().mockResolvedValue(undefined);
+
+    try {
+      const result = await graphql({
+        schema,
+        source: `
+          mutation UpdateTyping($typing: TypingInput!) {
+            updateTyping(typing: $typing) {
+              success
+            }
+          }
+        `,
+        variableValues: {
+          typing: {
+            messageRoomId: '60d5ec49ad414d7a8d5464b0',
+            isTyping: true,
+          },
+        },
         contextValue: {
           user: {
             _id: '60d5ec49ad414d7a8d5464a0',
           },
+          prisma: {
+            typing: { upsert },
+          },
+          pubsub: { publish },
         },
       });
 
-      expect(updateHeartbeatSpy).toHaveBeenCalledWith('60d5ec49ad414d7a8d5464a0');
+      expect(upsert).toHaveBeenCalledWith({
+        where: {
+          messageRoomId_userId: {
+            messageRoomId: '60d5ec49ad414d7a8d5464b0',
+            userId: '60d5ec49ad414d7a8d5464a0',
+          },
+        },
+        create: {
+          messageRoomId: '60d5ec49ad414d7a8d5464b0',
+          userId: '60d5ec49ad414d7a8d5464a0',
+          isTyping: true,
+          timestamp: now,
+          expiresAt: new Date(now.getTime() + 10_000),
+        },
+        update: {
+          isTyping: true,
+          timestamp: now,
+          expiresAt: new Date(now.getTime() + 10_000),
+        },
+      });
+      expect(publish).toHaveBeenCalledWith('TYPING_UPDATED', {
+        typing: {
+          messageRoomId: '60d5ec49ad414d7a8d5464b0',
+          userId: '60d5ec49ad414d7a8d5464a0',
+          isTyping: true,
+          timestamp: now.getTime(),
+        },
+      });
       expect(result.errors).toBeUndefined();
       expect(result.data).toEqual({
-        heartbeat: {
+        updateTyping: {
           success: true,
-          timestamp: lastHeartbeat.toISOString(),
-          status: 'away',
-          statusMessage: 'In a meeting',
         },
       });
     } finally {
-      updateHeartbeatSpy.mockRestore();
+      jest.useRealTimers();
     }
   });
 });
