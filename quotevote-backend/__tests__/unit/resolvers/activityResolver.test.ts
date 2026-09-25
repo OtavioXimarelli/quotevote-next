@@ -1,12 +1,8 @@
-import mongoose from 'mongoose';
 import { GraphQLError } from 'graphql';
 import { activityResolver, normalizeActivityEvents } from '~/data/resolvers/activityResolver';
-import Activity from '~/data/models/Activity';
-import User from '~/data/models/User';
-import type { GraphQLContext } from '~/types/graphql';
+import { ACTIVITY_SELECT } from '~/data/resolvers/utils/activities';
+import type { GraphQLContext, ActivityQueryArgs } from '~/types/graphql';
 
-jest.mock('~/data/models/Activity');
-jest.mock('~/data/models/User');
 jest.mock('~/data/utils/logger', () => ({
   logger: {
     warn: jest.fn(),
@@ -27,7 +23,15 @@ function mockContext(overrides: Partial<NonNullable<GraphQLContext['user']>> = {
     ...overrides,
   } as NonNullable<GraphQLContext['user']>;
   return {
-    prisma: {} as GraphQLContext['prisma'],
+    prisma: {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      activity: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    } as unknown as GraphQLContext['prisma'],
     req: {} as GraphQLContext['req'],
     res: {} as GraphQLContext['res'],
     pubsub: {} as GraphQLContext['pubsub'],
@@ -51,6 +55,17 @@ describe('normalizeActivityEvents', () => {
   });
 });
 
+function args(overrides: Partial<ActivityQueryArgs> = {}): ActivityQueryArgs {
+  return {
+    user_id: profileId,
+    limit: 10,
+    offset: 0,
+    searchKey: '',
+    activityEvent: [],
+    ...overrides,
+  };
+}
+
 describe('activityResolver', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -58,139 +73,219 @@ describe('activityResolver', () => {
 
   describe('Query.activities', () => {
     it('requires authentication', async () => {
-      await expect(
-        activityResolver.Query.activities(
-          null,
-          {
-            user_id: profileId,
-            limit: 10,
-            offset: 0,
-            searchKey: '',
-            activityEvent: ['VOTED'],
-          },
-          { ...mockContext(), user: null }
-        )
-      ).rejects.toThrow(GraphQLError);
+      const ctx = { ...mockContext(), user: null };
+
+      const promise = activityResolver.Query.activities(null, args(), ctx);
+      await expect(promise).rejects.toThrow(GraphQLError);
+      await expect(promise).rejects.toMatchObject({ extensions: { code: 'UNAUTHENTICATED' } });
+      expect(ctx.prisma.activity.findMany).not.toHaveBeenCalled();
     });
 
-    it('returns paginated activities for a user', async () => {
-      const activityId = new mongoose.Types.ObjectId();
-      (Activity.countDocuments as jest.Mock).mockResolvedValue(1);
-      (Activity.find as jest.Mock).mockReturnValue({
-        sort: jest.fn().mockReturnValue({
-          skip: jest.fn().mockReturnValue({
-            limit: jest.fn().mockReturnValue({
-              lean: jest.fn().mockResolvedValue([
-                {
-                  _id: activityId,
-                  userId: new mongoose.Types.ObjectId(profileId),
-                  postId: new mongoose.Types.ObjectId(),
-                  activityType: 'VOTED',
-                  content: 'voted',
-                  created: new Date('2024-01-01T00:00:00Z'),
-                },
-              ]),
-            }),
-          }),
-        }),
-      });
-
-      const result = await activityResolver.Query.activities(
-        null,
-        {
-          user_id: profileId,
-          limit: 15,
-          offset: 0,
-          searchKey: '',
-          activityEvent: ['VOTED'],
-        },
-        mockContext()
-      );
-
-      expect(Activity.countDocuments).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: profileId,
-          activityType: { $in: ['VOTED'] },
-        })
-      );
-      expect(result.pagination).toEqual({ total_count: 1, limit: 15, offset: 0 });
-      expect(result.entities).toHaveLength(1);
-      expect(result.entities[0].activityType).toBe('VOTED');
-      expect(result.entities[0]._id).toBe(activityId.toString());
-      expect(result.entities[0].userId).toBe(profileId);
-    });
-
-    it('rejects activities missing userId', async () => {
-      (Activity.countDocuments as jest.Mock).mockResolvedValue(1);
-      (Activity.find as jest.Mock).mockReturnValue({
-        sort: jest.fn().mockReturnValue({
-          skip: jest.fn().mockReturnValue({
-            limit: jest.fn().mockReturnValue({
-              lean: jest.fn().mockResolvedValue([
-                {
-                  _id: new mongoose.Types.ObjectId(),
-                  userId: null,
-                  activityType: 'VOTED',
-                  created: new Date(),
-                },
-              ]),
-            }),
-          }),
-        }),
-      });
-
-      await expect(
-        activityResolver.Query.activities(
-          null,
-          {
-            user_id: profileId,
-            limit: 10,
-            offset: 0,
-            searchKey: '',
-            activityEvent: ['VOTED'],
-          },
-          mockContext()
-        )
-      ).rejects.toThrow(/missing required userId/);
-    });
-
-    it('falls back to following feed when user_id is omitted', async () => {
-      const followingId = '60d5ec49ad414d7a8d5464a2';
-      (User.findById as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue({
-            _followingId: [new mongoose.Types.ObjectId(followingId)],
-          }),
-        }),
-      });
-      (Activity.countDocuments as jest.Mock).mockResolvedValue(0);
-      (Activity.find as jest.Mock).mockReturnValue({
-        sort: jest.fn().mockReturnValue({
-          skip: jest.fn().mockReturnValue({
-            limit: jest.fn().mockReturnValue({
-              lean: jest.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      });
+    it('accepts a legacy JSON-encoded activityEvent string', async () => {
+      const ctx = mockContext();
 
       await activityResolver.Query.activities(
         null,
-        {
-          user_id: '',
-          limit: 10,
-          offset: 0,
-          searchKey: '',
-          activityEvent: [],
-        },
-        mockContext()
+        args({
+          activityEvent: '["COMMENTED"]' as unknown as ActivityQueryArgs['activityEvent'],
+        }),
+        ctx
       );
 
-      expect(Activity.countDocuments).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: { $in: [followingId] },
-        })
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({
+        where: { activityType: { in: ['COMMENTED'] }, userId: profileId },
+      });
+    });
+
+    it('drops the activityType filter when no event is valid', async () => {
+      const ctx = mockContext();
+
+      await activityResolver.Query.activities(
+        null,
+        args({
+          activityEvent: ['NOT_A_REAL_EVENT'] as unknown as ActivityQueryArgs['activityEvent'],
+        }),
+        ctx
       );
+
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({
+        where: { userId: profileId },
+      });
+    });
+
+    it('rejects an invalid date range before querying', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        activityResolver.Query.activities(
+          null,
+          args({ startDateRange: 'not-a-date', endDateRange: '2024-01-31T00:00:00Z' }),
+          ctx
+        )
+      ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+      expect(ctx.prisma.activity.count).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid date range before the following-feed lookup', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        activityResolver.Query.activities(
+          null,
+          args({ user_id: '', startDateRange: '2024-01-01T00:00:00Z', endDateRange: 'nope' }),
+          ctx
+        )
+      ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+      expect(ctx.prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('returns paginated activities for a user', async () => {
+      const ctx = mockContext();
+      const activityId = '60d5ec49ad414d7a8d5464b0';
+      const postId = '60d5ec49ad414d7a8d5464b1';
+      const created = new Date('2024-01-01T00:00:00Z');
+      (ctx.prisma.activity.count as jest.Mock).mockResolvedValue(1);
+      (ctx.prisma.activity.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: activityId,
+          userId: profileId,
+          postId,
+          voteId: null,
+          commentId: null,
+          quoteId: null,
+          activityType: 'VOTED',
+          content: 'voted',
+          created,
+        },
+      ]);
+
+      const result = await activityResolver.Query.activities(
+        null,
+        args({ limit: 15, activityEvent: ['VOTED'] }),
+        ctx
+      );
+
+      const where = { activityType: { in: ['VOTED'] }, userId: profileId };
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({ where });
+      expect(ctx.prisma.activity.findMany).toHaveBeenCalledWith({
+        where,
+        orderBy: { created: 'desc' },
+        skip: 0,
+        take: 15,
+        select: ACTIVITY_SELECT,
+      });
+      expect(ctx.prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        entities: [
+          {
+            _id: activityId,
+            userId: profileId,
+            postId,
+            voteId: undefined,
+            commentId: undefined,
+            quoteId: undefined,
+            activityType: 'VOTED',
+            content: 'voted',
+            created,
+          },
+        ],
+        pagination: { total_count: 1, limit: 15, offset: 0 },
+      });
+    });
+
+    it('defaults limit to 10 and offset to 0 for missing or invalid values', async () => {
+      const ctx = mockContext();
+
+      const result = await activityResolver.Query.activities(
+        null,
+        args({ limit: 0, offset: -5 }),
+        ctx
+      );
+
+      expect(ctx.prisma.activity.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 10 })
+      );
+      expect(result.pagination).toEqual({ total_count: 0, limit: 10, offset: 0 });
+    });
+
+    it('rejects a malformed user_id before querying', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        activityResolver.Query.activities(null, args({ user_id: 'not-an-id' }), ctx)
+      ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+      expect(ctx.prisma.activity.count).not.toHaveBeenCalled();
+      expect(ctx.prisma.activity.findMany).not.toHaveBeenCalled();
+    });
+
+    it('falls back to following feed when user_id is omitted', async () => {
+      const ctx = mockContext();
+      const followingId = '60d5ec49ad414d7a8d5464a2';
+      (ctx.prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        followingIds: [followingId],
+      });
+
+      await activityResolver.Query.activities(null, args({ user_id: '' }), ctx);
+
+      expect(ctx.prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: actorId },
+        select: { followingIds: true },
+      });
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({
+        where: { userId: { in: [followingId] } },
+      });
+    });
+
+    it('uses an empty following list when the viewer record is missing', async () => {
+      const ctx = mockContext();
+
+      const result = await activityResolver.Query.activities(null, args({ user_id: '' }), ctx);
+
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({
+        where: { userId: { in: [] } },
+      });
+      expect(result.entities).toEqual([]);
+    });
+
+    it('applies searchKey as a case-insensitive content match', async () => {
+      const ctx = mockContext();
+
+      await activityResolver.Query.activities(null, args({ searchKey: '  hello  ' }), ctx);
+
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({
+        where: {
+          content: { contains: 'hello', mode: 'insensitive' },
+          userId: profileId,
+        },
+      });
+    });
+
+    it('applies the date range only when both ends are given', async () => {
+      const ctx = mockContext();
+
+      await activityResolver.Query.activities(
+        null,
+        args({ startDateRange: '2024-01-01T00:00:00Z', endDateRange: '2024-01-31T00:00:00Z' }),
+        ctx
+      );
+      await activityResolver.Query.activities(
+        null,
+        args({ startDateRange: '2024-01-01T00:00:00Z' }),
+        ctx
+      );
+
+      expect(ctx.prisma.activity.count).toHaveBeenNthCalledWith(1, {
+        where: {
+          userId: profileId,
+          created: {
+            gte: new Date('2024-01-01T00:00:00Z'),
+            lte: new Date('2024-01-31T00:00:00Z'),
+          },
+        },
+      });
+      expect(ctx.prisma.activity.count).toHaveBeenNthCalledWith(2, {
+        where: { userId: profileId },
+      });
     });
   });
 });

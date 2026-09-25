@@ -29,6 +29,7 @@ enum NotificationType {
   FOLLOW
   VOTE
   COMMENT
+  COMMENTED
   QUOTE
   MESSAGE
   MENTION

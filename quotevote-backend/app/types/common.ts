@@ -30,6 +30,12 @@ export type NotificationType =
   | 'UPVOTED'
   | 'DOWNVOTED';
 
+/**
+ * notificationType values that can exist on stored documents. Legacy addComment
+ * wrote 'COMMENTED', which is not part of the GraphQL NotificationType enum.
+ */
+export type StoredNotificationType = NotificationType | 'COMMENTED';
+
 export type VoteType = 'up' | 'down';
 
 export type MessageType = 'USER' | 'POST' | 'SYSTEM';
@@ -262,10 +268,10 @@ export type Messages = Message;
 export interface Notification {
   _id: string;
   userId: string;
-  userIdBy: string;
-  label: string;
+  userIdBy?: string;
+  label?: string;
   status: string;
-  notificationType: NotificationType;
+  notificationType?: StoredNotificationType;
   postId?: string;
   created: Date | string;
   updatedAt?: Date | string;

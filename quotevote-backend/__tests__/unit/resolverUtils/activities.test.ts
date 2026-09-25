@@ -2,19 +2,9 @@
  * Test suite for activity logging resolver utility.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-
-import { logActivity } from '~/data/resolvers/utils/activities';
+import type { PrismaClient } from '@prisma/client';
+import { logActivity, toActivityEntity } from '~/data/resolvers/utils/activities';
 import type { ActivityIds } from '~/data/resolvers/utils/activities';
-
-// Mock the Activity model
-const mockSave = jest.fn().mockResolvedValue(undefined);
-jest.mock('~/data/models/Activity', () => {
-  return jest.fn().mockImplementation((data: Record<string, unknown>) => ({
-    ...data,
-    save: mockSave,
-  }));
-});
 
 // Mock the logger
 jest.mock('~/data/utils/logger', () => ({
@@ -26,46 +16,86 @@ jest.mock('~/data/utils/logger', () => ({
   },
 }));
 
+function mockPrisma() {
+  const create = jest.fn().mockResolvedValue({ id: 'activity-1' });
+  const prisma = { activity: { create } } as unknown as Pick<PrismaClient, 'activity'>;
+  return { prisma, create };
+}
+
 describe('activities resolver utilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('logActivity', () => {
-    it('should create and save a new activity', async () => {
-      const ids: ActivityIds = { userId: 'user1', postId: 'post1' };
-      await logActivity('POSTED', ids, 'Test content');
+  describe('toActivityEntity', () => {
+    it('maps id to _id and null optional fields to undefined', () => {
+      const created = new Date('2024-01-01T00:00:00Z');
 
-      const Activity = require('~/data/models/Activity');
-      expect(Activity).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(
+        toActivityEntity({
+          id: 'a1',
+          userId: 'u1',
+          postId: 'p1',
+          voteId: null,
+          commentId: null,
+          quoteId: 'q1',
+          activityType: 'QUOTED',
+          content: null,
+          created,
+        })
+      ).toEqual({
+        _id: 'a1',
+        userId: 'u1',
+        postId: 'p1',
+        voteId: undefined,
+        commentId: undefined,
+        quoteId: 'q1',
+        activityType: 'QUOTED',
+        content: undefined,
+        created,
+      });
+    });
+  });
+
+  describe('logActivity', () => {
+    it('creates a new activity through Prisma', async () => {
+      const { prisma, create } = mockPrisma();
+      const ids: ActivityIds = { userId: 'user1', postId: 'post1' };
+
+      await logActivity(prisma, 'POSTED', ids, 'Test content');
+
+      expect(create).toHaveBeenCalledWith({
+        data: {
           activityType: 'POSTED',
           userId: 'user1',
           postId: 'post1',
           content: 'Test content',
           created: expect.any(Date),
-        })
-      );
-      expect(mockSave).toHaveBeenCalled();
+        },
+        select: { id: true },
+      });
     });
 
-    it('should handle activity without content', async () => {
+    it('handles activity without content', async () => {
+      const { prisma, create } = mockPrisma();
       const ids: ActivityIds = { userId: 'user1', voteId: 'vote1' };
-      await logActivity('VOTED', ids);
 
-      const Activity = require('~/data/models/Activity');
-      expect(Activity).toHaveBeenCalledWith(
+      await logActivity(prisma, 'VOTED', ids);
+
+      expect(create).toHaveBeenCalledWith(
         expect.objectContaining({
-          activityType: 'VOTED',
-          userId: 'user1',
-          voteId: 'vote1',
-          content: undefined,
+          data: expect.objectContaining({
+            activityType: 'VOTED',
+            userId: 'user1',
+            voteId: 'vote1',
+            content: undefined,
+          }),
         })
       );
-      expect(mockSave).toHaveBeenCalled();
     });
 
-    it('should handle activity with all optional ids', async () => {
+    it('handles activity with all optional ids', async () => {
+      const { prisma, create } = mockPrisma();
       const ids: ActivityIds = {
         userId: 'user1',
         postId: 'post1',
@@ -73,18 +103,20 @@ describe('activities resolver utilities', () => {
         commentId: 'comment1',
         quoteId: 'quote1',
       };
-      await logActivity('COMMENTED', ids, 'A comment');
 
-      const Activity = require('~/data/models/Activity');
-      expect(Activity).toHaveBeenCalledWith(
+      await logActivity(prisma, 'COMMENTED', ids, 'A comment');
+
+      expect(create).toHaveBeenCalledWith(
         expect.objectContaining({
-          activityType: 'COMMENTED',
-          userId: 'user1',
-          postId: 'post1',
-          voteId: 'vote1',
-          commentId: 'comment1',
-          quoteId: 'quote1',
-          content: 'A comment',
+          data: expect.objectContaining({
+            activityType: 'COMMENTED',
+            userId: 'user1',
+            postId: 'post1',
+            voteId: 'vote1',
+            commentId: 'comment1',
+            quoteId: 'quote1',
+            content: 'A comment',
+          }),
         })
       );
     });

@@ -83,20 +83,22 @@ model MessageRoom {
 }
 
 model Notification {
-  id               String           @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String           @db.ObjectId
-  userIdBy         String           @db.ObjectId
-  label            String
-  status           String           @default("new")
-  notificationType NotificationType
-  postId           String?          @db.ObjectId
-  created          DateTime         @default(now())
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String            @db.ObjectId
+  // Optional: legacy addContent wrote notifications without userIdBy,
+  // notificationType or label, and one such row must not fail the whole read.
+  userIdBy         String?           @db.ObjectId
+  label            String?
+  status           String            @default("new")
+  notificationType NotificationType?
+  postId           String?           @db.ObjectId
+  created          DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   // Relations
   user   User  @relation("NotificationRecipient", fields: [userId], references: [id])
-  sender User  @relation("NotificationSender", fields: [userIdBy], references: [id])
+  sender User? @relation("NotificationSender", fields: [userIdBy], references: [id])
   post   Post? @relation(fields: [postId], references: [id])
 
   @@index([userId])

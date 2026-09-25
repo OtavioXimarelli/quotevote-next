@@ -24,7 +24,8 @@ export const NotificationType: GraphQLObjectType<NotificationShape, GraphQLConte
       userIdBy: { type: GraphQLString },
       userBy: {
         type: UserType,
-        resolve: (notif) => notif.userBy ?? User.findById(notif.userIdBy).lean(),
+        resolve: (notif) =>
+          notif.userBy ?? (notif.userIdBy ? User.findById(notif.userIdBy).lean() : null),
       },
       user: {
         type: UserType,

@@ -2,21 +2,13 @@
  * Test suite for notification resolver utilities.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-
-import { addNotification } from '~/data/resolvers/utils/notifications';
+import type { PrismaClient } from '@prisma/client';
+import {
+  addNotification,
+  NOTIFICATION_SELECT,
+  toNotificationEntity,
+} from '~/data/resolvers/utils/notifications';
 import type { AddNotificationInput } from '~/data/resolvers/utils/notifications';
-
-// Mock Notification model
-const mockSave = jest.fn();
-jest.mock('~/data/models/Notification', () => {
-  return jest.fn().mockImplementation((data: Record<string, unknown>) => {
-    const doc: Record<string, unknown> = { ...data, _id: 'notif-1' };
-    mockSave.mockResolvedValue(doc);
-    doc.save = mockSave;
-    return doc;
-  });
-});
 
 // Mock pubsub
 const mockPublish = jest.fn().mockResolvedValue(undefined);
@@ -30,9 +22,52 @@ jest.mock('~/data/utils/constants', () => ({
   NOTIFICATION_CREATED: 'NOTIFICATION_CREATED',
 }));
 
+const created = new Date('2026-01-01T00:00:00.000Z');
+
+function mockPrisma() {
+  const create = jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+    id: 'notif-1',
+    userId: data.userId,
+    userIdBy: data.userIdBy,
+    label: data.label,
+    status: data.status,
+    notificationType: data.notificationType,
+    postId: data.postId ?? null,
+    created,
+  }));
+  const prisma = { notification: { create } } as unknown as Pick<PrismaClient, 'notification'>;
+  return { prisma, create };
+}
+
 describe('notifications resolver utilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('toNotificationEntity', () => {
+    it('maps id to _id and null postId to undefined', () => {
+      expect(
+        toNotificationEntity({
+          id: 'n1',
+          userId: 'u1',
+          userIdBy: 'u2',
+          label: 'hello',
+          status: 'new',
+          notificationType: 'COMMENTED',
+          postId: null,
+          created,
+        })
+      ).toEqual({
+        _id: 'n1',
+        userId: 'u1',
+        userIdBy: 'u2',
+        label: 'hello',
+        status: 'new',
+        notificationType: 'COMMENTED',
+        postId: undefined,
+        created,
+      });
+    });
   });
 
   describe('addNotification', () => {
@@ -44,12 +79,13 @@ describe('notifications resolver utilities', () => {
       postId: 'post1',
     };
 
-    it('should create and save a notification', async () => {
-      const result = await addNotification(input);
+    it('creates the notification through Prisma with status new', async () => {
+      const { prisma, create } = mockPrisma();
 
-      const Notification = require('~/data/models/Notification');
-      expect(Notification).toHaveBeenCalledWith(
-        expect.objectContaining({
+      const result = await addNotification(prisma, input);
+
+      expect(create).toHaveBeenCalledWith({
+        data: {
           userId: 'user1',
           userIdBy: 'user2',
           notificationType: 'UPVOTED',
@@ -57,40 +93,44 @@ describe('notifications resolver utilities', () => {
           postId: 'post1',
           status: 'new',
           created: expect.any(Date),
-        })
+        },
+        select: NOTIFICATION_SELECT,
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ _id: 'notif-1', userId: 'user1', postId: 'post1' })
       );
-      expect(mockSave).toHaveBeenCalled();
-      expect(result).toBeDefined();
     });
 
-    it('should publish notification via pubsub', async () => {
-      await addNotification(input);
+    it('publishes the mapped notification via pubsub', async () => {
+      const { prisma } = mockPrisma();
+
+      await addNotification(prisma, input);
 
       expect(mockPublish).toHaveBeenCalledWith('NOTIFICATION_CREATED', {
         notification: expect.objectContaining({
+          _id: 'notif-1',
           userId: 'user1',
           userIdBy: 'user2',
         }),
       });
     });
 
-    it('should handle notification without postId', async () => {
-      const inputWithoutPost: AddNotificationInput = {
+    it('handles a notification without postId', async () => {
+      const { prisma, create } = mockPrisma();
+
+      const result = await addNotification(prisma, {
         userId: 'user1',
         userIdBy: 'user2',
         notificationType: 'FOLLOW',
         label: 'Someone followed you',
-      };
+      });
 
-      await addNotification(inputWithoutPost);
-
-      const Notification = require('~/data/models/Notification');
-      expect(Notification).toHaveBeenCalledWith(
+      expect(create).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: 'user1',
-          postId: undefined,
+          data: expect.objectContaining({ userId: 'user1', postId: undefined }),
         })
       );
+      expect(result.postId).toBeUndefined();
     });
   });
 });
