@@ -75,10 +75,55 @@ describe('activityResolver', () => {
     it('requires authentication', async () => {
       const ctx = { ...mockContext(), user: null };
 
-      await expect(activityResolver.Query.activities(null, args(), ctx)).rejects.toThrow(
-        GraphQLError
-      );
+      const promise = activityResolver.Query.activities(null, args(), ctx);
+      await expect(promise).rejects.toThrow(GraphQLError);
+      await expect(promise).rejects.toMatchObject({ extensions: { code: 'UNAUTHENTICATED' } });
       expect(ctx.prisma.activity.findMany).not.toHaveBeenCalled();
+    });
+
+    it('accepts a legacy JSON-encoded activityEvent string', async () => {
+      const ctx = mockContext();
+
+      await activityResolver.Query.activities(
+        null,
+        args({
+          activityEvent: '["COMMENTED"]' as unknown as ActivityQueryArgs['activityEvent'],
+        }),
+        ctx
+      );
+
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({
+        where: { activityType: { in: ['COMMENTED'] }, userId: profileId },
+      });
+    });
+
+    it('drops the activityType filter when no event is valid', async () => {
+      const ctx = mockContext();
+
+      await activityResolver.Query.activities(
+        null,
+        args({
+          activityEvent: ['NOT_A_REAL_EVENT'] as unknown as ActivityQueryArgs['activityEvent'],
+        }),
+        ctx
+      );
+
+      expect(ctx.prisma.activity.count).toHaveBeenCalledWith({
+        where: { userId: profileId },
+      });
+    });
+
+    it('rejects an invalid date range before querying', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        activityResolver.Query.activities(
+          null,
+          args({ startDateRange: 'not-a-date', endDateRange: '2024-01-31T00:00:00Z' }),
+          ctx
+        )
+      ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+      expect(ctx.prisma.activity.count).not.toHaveBeenCalled();
     });
 
     it('returns paginated activities for a user', async () => {

@@ -37,9 +37,10 @@ describe('notificationResolver', () => {
     it('requires authentication', async () => {
       const ctx = mockContext(null);
 
-      await expect(notificationResolver.Query.notifications(null, {}, ctx)).rejects.toThrow(
-        /Authentication required/
-      );
+      await expect(notificationResolver.Query.notifications(null, {}, ctx)).rejects.toMatchObject({
+        message: 'Authentication required',
+        extensions: { code: 'UNAUTHENTICATED' },
+      });
       expect(ctx.prisma.notification.findMany).not.toHaveBeenCalled();
     });
 
@@ -74,6 +75,16 @@ describe('notificationResolver', () => {
 
       expect(ctx.prisma.notification.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 1 })
+      );
+    });
+
+    it('floors a fractional limit', async () => {
+      const ctx = authedContext();
+
+      await notificationResolver.Query.notifications(null, { limit: 2.7 }, ctx);
+
+      expect(ctx.prisma.notification.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 2 })
       );
     });
 

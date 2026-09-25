@@ -96,10 +96,14 @@ export const activityResolver = {
       }
 
       if (args.startDateRange && args.endDateRange) {
-        where.created = {
-          gte: new Date(args.startDateRange),
-          lte: new Date(args.endDateRange),
-        };
+        const start = new Date(args.startDateRange);
+        const end = new Date(args.endDateRange);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+          throw new GraphQLError('Invalid date range', {
+            extensions: { code: 'BAD_USER_INPUT' },
+          });
+        }
+        where.created = { gte: start, lte: end };
       }
 
       const [total, activitiesResult] = await Promise.all([
