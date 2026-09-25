@@ -126,6 +126,19 @@ describe('activityResolver', () => {
       expect(ctx.prisma.activity.count).not.toHaveBeenCalled();
     });
 
+    it('rejects an invalid date range before the following-feed lookup', async () => {
+      const ctx = mockContext();
+
+      await expect(
+        activityResolver.Query.activities(
+          null,
+          args({ user_id: '', startDateRange: '2024-01-01T00:00:00Z', endDateRange: 'nope' }),
+          ctx
+        )
+      ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+      expect(ctx.prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
     it('returns paginated activities for a user', async () => {
       const ctx = mockContext();
       const activityId = '60d5ec49ad414d7a8d5464b0';

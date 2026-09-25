@@ -23,6 +23,7 @@ import {
   GraphQLEnumType,
 } from 'graphql';
 import RosterMock from '~/data/models/Roster';
+import UserMock from '~/data/models/User';
 import type { GraphQLContext } from '~/types/graphql';
 import {
   DateScalar,
@@ -305,6 +306,27 @@ describe('GraphQL domain typedefs (7.28 migration)', () => {
       expect(result).toEqual([{ _id: 'roster1', userId: 'user1', buddyId: 'user2' }]);
 
       findSpy.mockRestore();
+    });
+
+    it('resolves Notification.userBy to null when a legacy row has no userIdBy', async () => {
+      const findByIdSpy = jest.spyOn(UserMock, 'findById');
+      const resolveFn = NotificationType.getFields().userBy.resolve as (
+        source: unknown,
+        args: Record<string, unknown>,
+        context: GraphQLContext,
+        info: unknown
+      ) => unknown;
+
+      const result = await resolveFn(
+        { _id: 'n1', userId: 'user1', status: 'new', created: new Date() },
+        {},
+        {} as GraphQLContext,
+        {}
+      );
+
+      expect(result).toBeNull();
+      expect(findByIdSpy).not.toHaveBeenCalled();
+      findByIdSpy.mockRestore();
     });
   });
 });

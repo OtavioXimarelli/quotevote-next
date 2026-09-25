@@ -80,6 +80,17 @@ export const activityResolver = {
         where.activityType = { in: events };
       }
 
+      if (args.startDateRange && args.endDateRange) {
+        const start = new Date(args.startDateRange);
+        const end = new Date(args.endDateRange);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+          throw new GraphQLError('Invalid date range', {
+            extensions: { code: 'BAD_USER_INPUT' },
+          });
+        }
+        where.created = { gte: start, lte: end };
+      }
+
       if (args.user_id) {
         if (!OBJECT_ID_PATTERN.test(args.user_id)) {
           throw new GraphQLError('Invalid user_id', {
@@ -93,17 +104,6 @@ export const activityResolver = {
           select: { followingIds: true },
         });
         where.userId = { in: viewer?.followingIds ?? [] };
-      }
-
-      if (args.startDateRange && args.endDateRange) {
-        const start = new Date(args.startDateRange);
-        const end = new Date(args.endDateRange);
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-          throw new GraphQLError('Invalid date range', {
-            extensions: { code: 'BAD_USER_INPUT' },
-          });
-        }
-        where.created = { gte: start, lte: end };
       }
 
       const [total, activitiesResult] = await Promise.all([
