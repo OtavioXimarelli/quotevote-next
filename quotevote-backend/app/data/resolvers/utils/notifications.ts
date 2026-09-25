@@ -24,15 +24,15 @@ export const NOTIFICATION_SELECT = {
 type NotificationRecord = Prisma.NotificationGetPayload<{ select: typeof NOTIFICATION_SELECT }>;
 
 /**
- * Map a Prisma notification row to the GraphQL shape (`id` → `_id`).
+ * Map a Prisma notification row to the GraphQL shape (`id` → `_id`, null → undefined).
  */
 export const toNotificationEntity = (record: NotificationRecord): Notification => ({
   _id: record.id,
   userId: record.userId,
-  userIdBy: record.userIdBy,
-  label: record.label,
+  userIdBy: record.userIdBy ?? undefined,
+  label: record.label ?? undefined,
   status: record.status,
-  notificationType: record.notificationType,
+  notificationType: record.notificationType ?? undefined,
   postId: record.postId ?? undefined,
   created: record.created,
 });

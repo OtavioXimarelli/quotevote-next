@@ -78,6 +78,38 @@ describe('notificationResolver', () => {
       );
     });
 
+    it('returns legacy rows missing userIdBy, notificationType and label', async () => {
+      const ctx = authedContext();
+      const created = new Date('2020-01-01T00:00:00.000Z');
+      (ctx.prisma.notification.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'n3',
+          userId,
+          userIdBy: null,
+          label: null,
+          status: 'new',
+          notificationType: null,
+          postId: null,
+          created,
+        },
+      ]);
+
+      const result = await notificationResolver.Query.notifications(null, {}, ctx);
+
+      expect(result).toEqual([
+        {
+          _id: 'n3',
+          userId,
+          userIdBy: undefined,
+          label: undefined,
+          status: 'new',
+          notificationType: undefined,
+          postId: undefined,
+          created,
+        },
+      ]);
+    });
+
     it('floors a fractional limit', async () => {
       const ctx = authedContext();
 

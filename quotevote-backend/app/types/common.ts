@@ -268,10 +268,10 @@ export type Messages = Message;
 export interface Notification {
   _id: string;
   userId: string;
-  userIdBy: string;
-  label: string;
+  userIdBy?: string;
+  label?: string;
   status: string;
-  notificationType: StoredNotificationType;
+  notificationType?: StoredNotificationType;
   postId?: string;
   created: Date | string;
   updatedAt?: Date | string;
