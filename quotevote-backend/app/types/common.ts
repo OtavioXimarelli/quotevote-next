@@ -380,7 +380,12 @@ export interface UserInvite {
   expiresAt?: Date | string;
 }
 
-export type ReportReason = 'spam' | 'harassment' | 'inappropriate_content' | 'fake_account' | 'other';
+export type ReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'inappropriate_content'
+  | 'fake_account'
+  | 'other';
 export type ReportStatus = 'pending' | 'reviewed' | 'resolved' | 'dismissed';
 export type ReportSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -496,7 +501,10 @@ export interface VoteInput {
 }
 
 export interface QuoteInput {
-  userId: string;
+  /** Authenticated quoter; resolvers prefer context.userId over this field. */
+  quoter: string;
+  /** Post author being quoted (not persisted on Prisma Quote). */
+  quoted: string;
   postId: string;
   quote: string;
   startWordIndex?: number;

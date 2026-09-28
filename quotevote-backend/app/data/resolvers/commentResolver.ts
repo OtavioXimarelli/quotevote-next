@@ -1,8 +1,9 @@
 import { GraphQLError } from 'graphql';
 import { ActivityEventTypeValues } from '~/data/utils/constants';
 import { logActivity } from '~/data/resolvers/utils/activities';
+import { addNotification } from '~/data/resolvers/utils/notifications';
 import { updateTrending } from '~/data/resolvers/utils/posts';
-import { QUOTE_SELECT, toQuote } from '~/data/resolvers/utils/commentsQuotes';
+import { COMMENT_SELECT, toComment } from '~/data/resolvers/utils/commentsQuotes';
 import type * as Common from '~/types/common';
 import type { GraphQLContext } from '~/types/graphql';
 
@@ -21,46 +22,30 @@ function requireUserId(context: GraphQLContext): string {
   return context.user._id.toString();
 }
 
-export const quoteResolver = {
-  Query: {
-    latestQuotes: async (
-      _parent: unknown,
-      args: { limit: number },
-      context: GraphQLContext
-    ): Promise<Common.Quote[]> => {
-      const quotes = await context.prisma.quote.findMany({
-        where: { deleted: false },
-        orderBy: { created: 'desc' },
-        take: args.limit,
-        select: QUOTE_SELECT,
-      });
-      return quotes.map(toQuote);
-    },
-  },
-
+export const commentResolver = {
   Mutation: {
-    addQuote: async (
+    addComment: async (
       _parent: unknown,
-      args: { quote: Common.QuoteInput },
+      args: { comment: Common.CommentInput },
       context: GraphQLContext
-    ): Promise<Common.Quote> => {
+    ): Promise<Common.Comment> => {
       const userId = requireUserId(context);
-      const { postId, quote, startWordIndex, endWordIndex } = args.quote;
+      const { postId, content, startWordIndex, endWordIndex, url, reaction } = args.comment;
 
       if (!isObjectId(postId)) {
         throw new GraphQLError('Invalid postId', {
           extensions: { code: 'BAD_USER_INPUT' },
         });
       }
-      if (!quote?.trim()) {
-        throw new GraphQLError('Quote text is required', {
+      if (!content?.trim()) {
+        throw new GraphQLError('Comment content is required', {
           extensions: { code: 'BAD_USER_INPUT' },
         });
       }
 
       const post = await context.prisma.post.findUnique({
         where: { id: postId },
-        select: { id: true, title: true, deleted: true },
+        select: { id: true, title: true, userId: true, deleted: true },
       });
       if (!post || post.deleted) {
         throw new GraphQLError('Post not found', {
@@ -68,64 +53,78 @@ export const quoteResolver = {
         });
       }
 
-      const created = await context.prisma.quote.create({
+      const created = await context.prisma.comment.create({
         data: {
           userId,
           postId,
-          quote: quote.trim(),
+          content: content.trim(),
           startWordIndex: startWordIndex ?? undefined,
           endWordIndex: endWordIndex ?? undefined,
+          url: url ?? undefined,
+          reaction: reaction ?? undefined,
           created: new Date(),
         },
-        select: QUOTE_SELECT,
+        select: COMMENT_SELECT,
       });
 
       await updateTrending(context.prisma, postId);
       await logActivity(
         context.prisma,
-        ActivityEventTypeValues.QUOTED,
-        { userId, postId, quoteId: created.id },
-        `Quoted on '${post.title}' post.`
+        ActivityEventTypeValues.COMMENTED,
+        { userId, postId, commentId: created.id },
+        `Commented on '${post.title}' post.`
       );
 
-      return toQuote(created);
+      // Notify the post author (skip self-comments). Use COMMENT to match the
+      // GraphQL NotificationType enum; legacy wrote COMMENTED to Mongo.
+      if (post.userId !== userId) {
+        await addNotification(context.prisma, {
+          userId: post.userId,
+          userIdBy: userId,
+          notificationType: 'COMMENT',
+          label: created.content,
+          postId,
+        });
+      }
+
+      return toComment(created);
     },
 
-    deleteQuote: async (
+    deleteComment: async (
       _parent: unknown,
-      args: { quoteId: string },
+      args: { commentId: string },
       context: GraphQLContext
     ): Promise<{ _id: string }> => {
       const userId = requireUserId(context);
       const isAdmin = context.user?.admin === true;
 
-      if (!isObjectId(args.quoteId)) {
-        return { _id: args.quoteId };
+      if (!isObjectId(args.commentId)) {
+        return { _id: args.commentId };
       }
 
-      const existing = await context.prisma.quote.findUnique({
-        where: { id: args.quoteId },
+      const existing = await context.prisma.comment.findUnique({
+        where: { id: args.commentId },
         select: { id: true, userId: true, deleted: true },
       });
       if (!existing) {
-        return { _id: args.quoteId };
+        return { _id: args.commentId };
       }
 
       if (existing.userId !== userId && !isAdmin) {
-        throw new GraphQLError('Not authorized to delete this quote', {
+        throw new GraphQLError('Not authorized to delete this comment', {
           extensions: { code: 'FORBIDDEN' },
         });
       }
 
       if (!existing.deleted) {
-        await context.prisma.quote.update({
-          where: { id: args.quoteId },
+        await context.prisma.comment.update({
+          where: { id: args.commentId },
           data: { deleted: true },
           select: { id: true },
         });
       }
 
-      return { _id: args.quoteId };
+      return { _id: args.commentId };
     },
   },
 };

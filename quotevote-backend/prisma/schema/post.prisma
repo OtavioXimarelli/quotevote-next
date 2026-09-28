@@ -87,6 +87,7 @@ model Quote {
   quote          String
   startWordIndex Int?
   endWordIndex   Int?
+  deleted        Boolean  @default(false)
   created        DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -99,6 +100,7 @@ model Quote {
   @@index([userId])
   @@index([postId])
   @@index([created])
+  @@index([deleted])
   @@map("quotes")
 }
 

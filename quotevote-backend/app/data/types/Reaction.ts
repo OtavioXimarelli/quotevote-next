@@ -3,9 +3,7 @@ import type { GraphQLContext } from '~/types/graphql';
 import type * as Common from '~/types/common';
 import { UserType } from './User';
 import { MessageType } from './Message';
-
-import User from '../models/User';
-import Message from '../models/Message';
+import { toPublicUser } from '~/data/utils/userPrismaMapper';
 
 export const ReactionType: GraphQLObjectType<Common.Reaction, GraphQLContext> =
   new GraphQLObjectType<Common.Reaction, GraphQLContext>({
@@ -20,11 +18,36 @@ export const ReactionType: GraphQLObjectType<Common.Reaction, GraphQLContext> =
       emoji: { type: GraphQLString },
       user: {
         type: UserType,
-        resolve: (rxn) => User.findById(rxn.userId).lean(),
+        resolve: async (rxn, _args, context) => {
+          const user = await context.prisma.user.findUnique({ where: { id: rxn.userId } });
+          return user ? toPublicUser(user) : null;
+        },
       },
       message: {
         type: MessageType,
-        resolve: (rxn) => Message.findById(rxn.messageId).lean(),
+        resolve: async (rxn, _args, context) => {
+          if (!rxn.messageId) return null;
+          const message = await context.prisma.message.findUnique({
+            where: { id: rxn.messageId },
+          });
+          if (!message) return null;
+          return {
+            _id: message.id,
+            messageRoomId: message.messageRoomId,
+            userId: message.userId,
+            userName: message.userName ?? undefined,
+            title: message.title ?? undefined,
+            text: message.text,
+            type: (message.type as Common.MessageType | undefined) ?? undefined,
+            mutation_type: message.mutationType ?? undefined,
+            deleted: message.deleted,
+            readBy: message.readBy,
+            readByDetailed: message.readByDetailed,
+            deliveredTo: message.deliveredTo,
+            created: message.created,
+            updatedAt: message.updatedAt,
+          } satisfies Common.Message;
+        },
       },
     }),
   });

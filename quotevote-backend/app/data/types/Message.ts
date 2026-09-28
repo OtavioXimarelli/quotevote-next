@@ -18,7 +18,6 @@ import { MessageTypeEnum } from './enums';
 
 import User from '../models/User';
 import MessageRoom from '../models/MessageRoom';
-import Reaction from '../models/Reaction';
 import Presence from '../models/Presence';
 
 interface MessageShape extends Common.Message {
@@ -60,7 +59,8 @@ export const MessageType: GraphQLObjectType<MessageShape, GraphQLContext> = new 
     deleted: { type: GraphQLBoolean },
     user: {
       type: UserType,
-      resolve: (msg) => (msg as Common.Message & { user?: Common.User }).user ?? User.findById(msg.userId).lean(),
+      resolve: (msg) =>
+        (msg as Common.Message & { user?: Common.User }).user ?? User.findById(msg.userId).lean(),
     },
     messageRoom: {
       type: MessageRoomType,
@@ -68,7 +68,20 @@ export const MessageType: GraphQLObjectType<MessageShape, GraphQLContext> = new 
     },
     reactions: {
       type: new GraphQLList(ReactionType),
-      resolve: (msg) => Reaction.find({ messageId: msg._id }).lean(),
+      resolve: async (msg, _args, context) => {
+        const reactions = await context.prisma.reaction.findMany({
+          where: { messageId: msg._id },
+          orderBy: { created: 'desc' },
+        });
+        return reactions.map((reaction) => ({
+          _id: reaction.id,
+          userId: reaction.userId,
+          messageId: reaction.messageId ?? undefined,
+          actionId: reaction.actionId ?? undefined,
+          emoji: reaction.emoji,
+          created: reaction.created,
+        }));
+      },
     },
     presence: {
       type: PresenceType,
