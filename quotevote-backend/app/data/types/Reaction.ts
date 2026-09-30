@@ -3,7 +3,12 @@ import type { GraphQLContext } from '~/types/graphql';
 import type * as Common from '~/types/common';
 import { UserType } from './User';
 import { MessageType } from './Message';
-import { toPublicUser } from '~/data/utils/userPrismaMapper';
+import {
+  PUBLIC_USER_SELECT,
+  toPublicUser,
+  type PrismaUserRecord,
+} from '~/data/utils/userPrismaMapper';
+import { MESSAGE_RECORD_SELECT, toMessageEntity } from '~/data/resolvers/utils/commentsQuotes';
 
 export const ReactionType: GraphQLObjectType<Common.Reaction, GraphQLContext> =
   new GraphQLObjectType<Common.Reaction, GraphQLContext>({
@@ -19,8 +24,11 @@ export const ReactionType: GraphQLObjectType<Common.Reaction, GraphQLContext> =
       user: {
         type: UserType,
         resolve: async (rxn, _args, context) => {
-          const user = await context.prisma.user.findUnique({ where: { id: rxn.userId } });
-          return user ? toPublicUser(user) : null;
+          const user = await context.prisma.user.findUnique({
+            where: { id: rxn.userId },
+            select: PUBLIC_USER_SELECT,
+          });
+          return user ? toPublicUser(user as PrismaUserRecord) : null;
         },
       },
       message: {
@@ -29,24 +37,9 @@ export const ReactionType: GraphQLObjectType<Common.Reaction, GraphQLContext> =
           if (!rxn.messageId) return null;
           const message = await context.prisma.message.findUnique({
             where: { id: rxn.messageId },
+            select: MESSAGE_RECORD_SELECT,
           });
-          if (!message) return null;
-          return {
-            _id: message.id,
-            messageRoomId: message.messageRoomId,
-            userId: message.userId,
-            userName: message.userName ?? undefined,
-            title: message.title ?? undefined,
-            text: message.text,
-            type: (message.type as Common.MessageType | undefined) ?? undefined,
-            mutation_type: message.mutationType ?? undefined,
-            deleted: message.deleted,
-            readBy: message.readBy,
-            readByDetailed: message.readByDetailed,
-            deliveredTo: message.deliveredTo,
-            created: message.created,
-            updatedAt: message.updatedAt,
-          } satisfies Common.Message;
+          return message ? toMessageEntity(message) : null;
         },
       },
     }),

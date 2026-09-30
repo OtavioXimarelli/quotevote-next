@@ -10,7 +10,11 @@ import type * as Common from '~/types/common';
 import { DateScalar } from './scalars';
 import { UserType } from './User';
 import { PostType } from './Post';
-import { toPublicUser } from '~/data/utils/userPrismaMapper';
+import {
+  PUBLIC_USER_SELECT,
+  toPublicUser,
+  type PrismaUserRecord,
+} from '~/data/utils/userPrismaMapper';
 import { POST_RECORD_SELECT, toGraphQLPost } from '~/data/utils/postPrismaMapper';
 
 export const CommentType: GraphQLObjectType<Common.Comment, GraphQLContext> = new GraphQLObjectType<
@@ -35,8 +39,11 @@ export const CommentType: GraphQLObjectType<Common.Comment, GraphQLContext> = ne
       resolve: async (comment, _args, context) => {
         const preloaded = (comment as Common.Comment & { user?: Common.User }).user;
         if (preloaded) return preloaded;
-        const user = await context.prisma.user.findUnique({ where: { id: comment.userId } });
-        return user ? toPublicUser(user) : null;
+        const user = await context.prisma.user.findUnique({
+          where: { id: comment.userId },
+          select: PUBLIC_USER_SELECT,
+        });
+        return user ? toPublicUser(user as PrismaUserRecord) : null;
       },
     },
     post: {

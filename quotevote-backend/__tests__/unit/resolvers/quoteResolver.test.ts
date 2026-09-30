@@ -1,14 +1,17 @@
 import { quoteResolver } from '~/data/resolvers/quoteResolver';
+import { toQuote } from '~/data/resolvers/utils/commentsQuotes';
 import type { GraphQLContext } from '~/types/graphql';
 
 const date = new Date('2026-01-01T00:00:00.000Z');
 const userId = '60d5ec49ad414d7a8d5464a0';
+const postOwnerId = '60d5ec49ad414d7a8d546499';
 const postId = '60d5ec49ad414d7a8d5464c2';
 const quoteId = '60d5ec49ad414d7a8d5464b1';
 
 const QUOTE_SELECT = {
   id: true,
   userId: true,
+  quoted: true,
   postId: true,
   quote: true,
   startWordIndex: true,
@@ -59,6 +62,7 @@ describe('quoteResolver', () => {
       {
         id: quoteId,
         userId,
+        quoted: postOwnerId,
         postId,
         quote: 'A thoughtful line',
         startWordIndex: 1,
@@ -71,7 +75,7 @@ describe('quoteResolver', () => {
     const result = await quoteResolver.Query.latestQuotes({}, { limit: 5 }, context as never);
 
     expect(context.prisma.quote.findMany).toHaveBeenCalledWith({
-      where: { deleted: false },
+      where: { deleted: { not: true } },
       orderBy: { created: 'desc' },
       take: 5,
       select: QUOTE_SELECT,
@@ -80,13 +84,30 @@ describe('quoteResolver', () => {
       {
         _id: quoteId,
         userId,
+        quoted: postOwnerId,
         postId,
         quote: 'A thoughtful line',
         startWordIndex: 1,
         endWordIndex: 3,
+        deleted: false,
         created: date,
       },
     ]);
+  });
+
+  it('caps latestQuotes at 100 and falls back for non-positive limits', async () => {
+    const context = mockContext();
+    context.prisma.quote.findMany.mockResolvedValue([]);
+
+    await quoteResolver.Query.latestQuotes({}, { limit: 500 }, context as never);
+    expect(context.prisma.quote.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 100 })
+    );
+
+    await quoteResolver.Query.latestQuotes({}, { limit: 0 }, context as never);
+    expect(context.prisma.quote.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ take: 100 })
+    );
   });
 
   describe('Mutation.addQuote', () => {
@@ -98,7 +119,7 @@ describe('quoteResolver', () => {
             quote: {
               postId,
               quoter: userId,
-              quoted: '60d5ec49ad414d7a8d546499',
+              quoted: postOwnerId,
               quote: 'line',
               startWordIndex: 0,
               endWordIndex: 1,
@@ -109,11 +130,12 @@ describe('quoteResolver', () => {
       ).rejects.toThrow(/Authentication required/);
     });
 
-    it('creates a quote, updates trending, and logs activity', async () => {
+    it('creates a quote with quoted set to the post author', async () => {
       const context = mockContext(authedUser());
       context.prisma.post.findUnique.mockResolvedValue({
         id: postId,
         title: 'Hello',
+        userId: postOwnerId,
         deleted: false,
         pointTimestamp: date,
         dayPoints: 1,
@@ -121,6 +143,7 @@ describe('quoteResolver', () => {
       context.prisma.quote.create.mockResolvedValue({
         id: quoteId,
         userId,
+        quoted: postOwnerId,
         postId,
         quote: 'line',
         startWordIndex: 0,
@@ -136,7 +159,7 @@ describe('quoteResolver', () => {
           quote: {
             postId,
             quoter: 'ignored-client-id',
-            quoted: '60d5ec49ad414d7a8d546499',
+            quoted: 'ignored-client-quoted',
             quote: 'line',
             startWordIndex: 0,
             endWordIndex: 1,
@@ -148,6 +171,7 @@ describe('quoteResolver', () => {
       expect(context.prisma.quote.create).toHaveBeenCalledWith({
         data: {
           userId,
+          quoted: postOwnerId,
           postId,
           quote: 'line',
           startWordIndex: 0,
@@ -159,6 +183,7 @@ describe('quoteResolver', () => {
       expect(context.prisma.activity.create).toHaveBeenCalled();
       expect(result._id).toBe(quoteId);
       expect(result.userId).toBe(userId);
+      expect(result.quoted).toBe(postOwnerId);
     });
   });
 
@@ -186,13 +211,41 @@ describe('quoteResolver', () => {
       const context = mockContext(authedUser());
       context.prisma.quote.findUnique.mockResolvedValue({
         id: quoteId,
-        userId: '60d5ec49ad414d7a8d546499',
+        userId: postOwnerId,
         deleted: false,
       });
 
       await expect(
         quoteResolver.Mutation.deleteQuote(null, { quoteId }, context as never)
       ).rejects.toThrow(/Not authorized/);
+    });
+  });
+
+  describe('legacy-shaped documents', () => {
+    it('maps a quote whose author lived in quoter (Prisma userId) without quoted', () => {
+      const mapped = toQuote({
+        id: quoteId,
+        userId,
+        quoted: null,
+        postId,
+        quote: 'legacy excerpt',
+        startWordIndex: null,
+        endWordIndex: null,
+        deleted: false,
+        created: date,
+      });
+
+      expect(mapped).toEqual({
+        _id: quoteId,
+        userId,
+        quoted: undefined,
+        postId,
+        quote: 'legacy excerpt',
+        startWordIndex: undefined,
+        endWordIndex: undefined,
+        deleted: false,
+        created: date,
+      });
     });
   });
 });

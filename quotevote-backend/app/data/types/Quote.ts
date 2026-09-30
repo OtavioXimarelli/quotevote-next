@@ -11,13 +11,15 @@ import type * as Common from '~/types/common';
 import { DateScalar } from './scalars';
 import { UserType } from './User';
 import { PostType } from './Post';
-import { toPublicUser } from '~/data/utils/userPrismaMapper';
+import {
+  PUBLIC_USER_SELECT,
+  toPublicUser,
+  type PrismaUserRecord,
+} from '~/data/utils/userPrismaMapper';
 import { POST_RECORD_SELECT, toGraphQLPost } from '~/data/utils/postPrismaMapper';
 
 interface QuoteShape extends Common.Quote {
-  quoted?: string;
   quoter?: string;
-  deleted?: boolean;
 }
 
 export const QuoteType: GraphQLObjectType<QuoteShape, GraphQLContext> = new GraphQLObjectType<
@@ -44,8 +46,11 @@ export const QuoteType: GraphQLObjectType<QuoteShape, GraphQLContext> = new Grap
       resolve: async (quote, _args, context) => {
         const preloaded = (quote as Common.Quote & { user?: Common.User }).user;
         if (preloaded) return preloaded;
-        const user = await context.prisma.user.findUnique({ where: { id: quote.userId } });
-        return user ? toPublicUser(user) : null;
+        const user = await context.prisma.user.findUnique({
+          where: { id: quote.userId },
+          select: PUBLIC_USER_SELECT,
+        });
+        return user ? toPublicUser(user as PrismaUserRecord) : null;
       },
     },
     post: {

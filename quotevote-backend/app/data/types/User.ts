@@ -89,7 +89,7 @@ export const UserType: GraphQLObjectType<Common.User, GraphQLContext> = new Grap
       type: new GraphQLList(CommentType),
       resolve: async (user, _args, context) => {
         const comments = await context.prisma.comment.findMany({
-          where: { userId: user._id, deleted: false },
+          where: { userId: user._id, deleted: { not: true } },
           orderBy: { created: 'desc' },
           select: COMMENT_SELECT,
         });

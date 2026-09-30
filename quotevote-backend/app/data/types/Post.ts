@@ -87,7 +87,7 @@ export const PostType: GraphQLObjectType<PostShape, GraphQLContext> = new GraphQ
       resolve: async (p, _args, context) => {
         if (p.comments) return p.comments;
         const comments = await context.prisma.comment.findMany({
-          where: { postId: p._id, deleted: false },
+          where: { postId: p._id, deleted: { not: true } },
           orderBy: { created: 'asc' },
           select: COMMENT_SELECT,
         });
@@ -103,7 +103,7 @@ export const PostType: GraphQLObjectType<PostShape, GraphQLContext> = new GraphQ
       resolve: async (p, _args, context) => {
         if (p.quotes) return p.quotes;
         const quotes = await context.prisma.quote.findMany({
-          where: { postId: p._id, deleted: false },
+          where: { postId: p._id, deleted: { not: true } },
           orderBy: { created: 'asc' },
           select: QUOTE_SELECT,
         });

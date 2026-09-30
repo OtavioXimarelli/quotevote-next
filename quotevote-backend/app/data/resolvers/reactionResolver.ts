@@ -1,36 +1,13 @@
 import { GraphQLError } from 'graphql';
-import { Prisma } from '@prisma/client';
 import type * as Common from '~/types/common';
 import type { GraphQLContext } from '~/types/graphql';
+import {
+  REACTION_SELECT,
+  toReaction,
+  type ReactionRecord,
+} from '~/data/resolvers/utils/commentsQuotes';
 
 const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/;
-
-/**
- * Fields read for a reaction. Selected explicitly because legacy documents may
- * lack createdAt/updatedAt, and Prisma fails a read that returns a required
- * field it cannot find.
- */
-const REACTION_SELECT = {
-  id: true,
-  userId: true,
-  actionId: true,
-  messageId: true,
-  emoji: true,
-  created: true,
-} as const satisfies Prisma.ReactionSelect;
-
-type ReactionRecord = Prisma.ReactionGetPayload<{ select: typeof REACTION_SELECT }>;
-
-function toReaction(record: ReactionRecord): Common.Reaction {
-  return {
-    _id: record.id,
-    userId: record.userId,
-    actionId: record.actionId ?? undefined,
-    messageId: record.messageId ?? undefined,
-    emoji: record.emoji,
-    created: record.created,
-  };
-}
 
 function requireUserId(context: GraphQLContext): string {
   if (!context.user?._id) {
@@ -45,14 +22,11 @@ function isObjectId(id: string): boolean {
   return OBJECT_ID_PATTERN.test(id);
 }
 
-function isUniqueConflict(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
-}
-
 /**
  * One reaction per user per action. Prisma has no compound unique on
- * (userId, actionId), so this mirrors the Mongoose upsert: update when a row
- * exists, otherwise create, and retry the update if a concurrent insert wins.
+ * (userId, actionId), so this mirrors the Mongoose find-then-update-or-create
+ * path. Concurrent inserts can still create duplicate rows (same race as
+ * main); there is no unique index for P2002 to catch.
  */
 async function upsertActionReaction(
   prisma: GraphQLContext['prisma'],
@@ -72,24 +46,10 @@ async function upsertActionReaction(
     });
   }
 
-  try {
-    return await prisma.reaction.create({
-      data: { userId, actionId, emoji },
-      select: REACTION_SELECT,
-    });
-  } catch (error) {
-    if (!isUniqueConflict(error)) throw error;
-    const raced = await prisma.reaction.findFirst({
-      where: { userId, actionId },
-      select: REACTION_SELECT,
-    });
-    if (!raced) throw error;
-    return prisma.reaction.update({
-      where: { id: raced.id },
-      data: { emoji },
-      select: REACTION_SELECT,
-    });
-  }
+  return prisma.reaction.create({
+    data: { userId, actionId, emoji },
+    select: REACTION_SELECT,
+  });
 }
 
 export const reactionResolver = {

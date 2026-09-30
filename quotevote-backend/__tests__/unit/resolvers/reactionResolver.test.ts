@@ -1,5 +1,5 @@
-import { Prisma } from '@prisma/client';
 import { reactionResolver } from '~/data/resolvers/reactionResolver';
+import { toReaction } from '~/data/resolvers/utils/commentsQuotes';
 import type { GraphQLContext } from '~/types/graphql';
 
 const userId = '60d5ec49ad414d7a8d5464a0';
@@ -179,45 +179,6 @@ describe('reactionResolver', () => {
       });
       expect(result.emoji).toBe('❤️');
     });
-
-    it('updates the raced row when create hits a unique conflict', async () => {
-      const context = mockContext(authedUser());
-      context.prisma.reaction.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
-        id: reactionId,
-        userId,
-        actionId,
-        messageId: null,
-        emoji: '👍',
-        created: date,
-      });
-      context.prisma.reaction.create.mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-          code: 'P2002',
-          clientVersion: 'test',
-        })
-      );
-      context.prisma.reaction.update.mockResolvedValue({
-        id: reactionId,
-        userId,
-        actionId,
-        messageId: null,
-        emoji: '❤️',
-        created: date,
-      });
-
-      const result = await reactionResolver.Mutation.addActionReaction(
-        null,
-        { reaction: { userId, actionId, emoji: '❤️' } },
-        context as never
-      );
-
-      expect(result.emoji).toBe('❤️');
-      expect(context.prisma.reaction.update).toHaveBeenCalledWith({
-        where: { id: reactionId },
-        data: { emoji: '❤️' },
-        select: REACTION_SELECT,
-      });
-    });
   });
 
   describe('Mutation.updateActionReaction', () => {
@@ -357,6 +318,28 @@ describe('reactionResolver', () => {
 
       expect(context.prisma.reaction.delete).toHaveBeenCalledWith({ where: { id: reactionId } });
       expect(result).toBe(true);
+    });
+  });
+
+  describe('legacy-shaped documents', () => {
+    it('maps a reaction without timestamps through toReaction', () => {
+      expect(
+        toReaction({
+          id: reactionId,
+          userId,
+          actionId,
+          messageId: null,
+          emoji: '👍',
+          created: date,
+        })
+      ).toEqual({
+        _id: reactionId,
+        userId,
+        actionId,
+        messageId: undefined,
+        emoji: '👍',
+        created: date,
+      });
     });
   });
 });

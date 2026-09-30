@@ -1,8 +1,10 @@
 import { GraphQLError } from 'graphql';
 import { ActivityEventTypeValues } from '~/data/utils/constants';
+import { logger } from '~/data/utils/logger';
 import { logActivity } from '~/data/resolvers/utils/activities';
 import { addNotification } from '~/data/resolvers/utils/notifications';
 import { updateTrending } from '~/data/resolvers/utils/posts';
+import { addUserToPostRoom } from '~/data/resolvers/utils/messages';
 import { COMMENT_SELECT, toComment } from '~/data/resolvers/utils/commentsQuotes';
 import type * as Common from '~/types/common';
 import type { GraphQLContext } from '~/types/graphql';
@@ -68,6 +70,19 @@ export const commentResolver = {
       });
 
       await updateTrending(context.prisma, postId);
+
+      // Legacy addComment joins the commenter to the post chat room. A room
+      // failure must not fail the comment itself.
+      try {
+        await addUserToPostRoom(context.prisma, postId, userId);
+      } catch (err) {
+        logger.warn('addComment: failed to add user to post message room', {
+          postId,
+          userId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
       await logActivity(
         context.prisma,
         ActivityEventTypeValues.COMMENTED,
@@ -75,13 +90,14 @@ export const commentResolver = {
         `Commented on '${post.title}' post.`
       );
 
-      // Notify the post author (skip self-comments). Use COMMENT to match the
-      // GraphQL NotificationType enum; legacy wrote COMMENTED to Mongo.
+      // Skip self-notifications (deliberate improvement over legacy, which
+      // notified the author even on their own comment). Write COMMENTED so the
+      // frontend NotificationLists switch and legacy rows stay consistent.
       if (post.userId !== userId) {
         await addNotification(context.prisma, {
           userId: post.userId,
           userIdBy: userId,
-          notificationType: 'COMMENT',
+          notificationType: 'COMMENTED',
           label: created.content,
           postId,
         });

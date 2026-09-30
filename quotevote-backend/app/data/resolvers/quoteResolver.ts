@@ -7,6 +7,7 @@ import type * as Common from '~/types/common';
 import type { GraphQLContext } from '~/types/graphql';
 
 const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/;
+const MAX_LATEST_QUOTES = 100;
 
 function isObjectId(id: string): boolean {
   return OBJECT_ID_PATTERN.test(id);
@@ -29,9 +30,10 @@ export const quoteResolver = {
       context: GraphQLContext
     ): Promise<Common.Quote[]> => {
       const quotes = await context.prisma.quote.findMany({
-        where: { deleted: false },
+        // `{ not: true }` keeps legacy rows that never received a deleted field.
+        where: { deleted: { not: true } },
         orderBy: { created: 'desc' },
-        take: args.limit,
+        take: args.limit > 0 ? Math.min(args.limit, MAX_LATEST_QUOTES) : MAX_LATEST_QUOTES,
         select: QUOTE_SELECT,
       });
       return quotes.map(toQuote);
@@ -60,7 +62,7 @@ export const quoteResolver = {
 
       const post = await context.prisma.post.findUnique({
         where: { id: postId },
-        select: { id: true, title: true, deleted: true },
+        select: { id: true, title: true, userId: true, deleted: true },
       });
       if (!post || post.deleted) {
         throw new GraphQLError('Post not found', {
@@ -71,6 +73,7 @@ export const quoteResolver = {
       const created = await context.prisma.quote.create({
         data: {
           userId,
+          quoted: post.userId,
           postId,
           quote: quote.trim(),
           startWordIndex: startWordIndex ?? undefined,

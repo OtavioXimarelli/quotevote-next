@@ -19,6 +19,7 @@ import { MessageTypeEnum } from './enums';
 import User from '../models/User';
 import MessageRoom from '../models/MessageRoom';
 import Presence from '../models/Presence';
+import { REACTION_SELECT, toReaction } from '~/data/resolvers/utils/commentsQuotes';
 
 interface MessageShape extends Common.Message {
   userAvatar?: string;
@@ -72,15 +73,9 @@ export const MessageType: GraphQLObjectType<MessageShape, GraphQLContext> = new 
         const reactions = await context.prisma.reaction.findMany({
           where: { messageId: msg._id },
           orderBy: { created: 'desc' },
+          select: REACTION_SELECT,
         });
-        return reactions.map((reaction) => ({
-          _id: reaction.id,
-          userId: reaction.userId,
-          messageId: reaction.messageId ?? undefined,
-          actionId: reaction.actionId ?? undefined,
-          emoji: reaction.emoji,
-          created: reaction.created,
-        }));
+        return reactions.map(toReaction);
       },
     },
     presence: {
