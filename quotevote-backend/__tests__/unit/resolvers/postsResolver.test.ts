@@ -7,7 +7,7 @@ const userId = '507f1f77bcf86cd799439011';
 const tagId = '507f1f77bcf86cd799439012';
 const postId = '507f1f77bcf86cd799439013';
 
-function mockContext(): GraphQLContext {
+function mockContext(user: GraphQLContext['user'] = null): GraphQLContext {
   return {
     prisma: {
       user: {
@@ -16,10 +16,13 @@ function mockContext(): GraphQLContext {
       post: {
         findMany: jest.fn(),
         count: jest.fn(),
+        findUnique: jest.fn(),
+        updateMany: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
       },
     } as unknown as GraphQLContext['prisma'],
-    user: null,
-    userId: null,
+    user,
+    userId: user?._id?.toString() ?? null,
     requestId: 'test-request-id',
   } as GraphQLContext;
 }
@@ -183,6 +186,272 @@ describe('postsResolver', () => {
           }),
         })
       );
+    });
+  });
+
+  describe('Mutation.reportPost', () => {
+    const validUserId = '60d5ec49ad414d7a8d5464a0';
+    const otherUserId = '60d5ec49ad414d7a8d5464a1';
+    const validPostId = '60d5ec49ad414d7a8d5464a2';
+
+    const authContext = mockContext({
+      _id: validUserId,
+      admin: false,
+    } as NonNullable<GraphQLContext['user']>);
+
+    it('throws UNAUTHENTICATED GraphQLError when user is not authenticated', async () => {
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: validUserId },
+          mockContext(null)
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Authentication required',
+          extensions: expect.objectContaining({ code: 'UNAUTHENTICATED' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when postId or userId is missing', async () => {
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: '', userId: validUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Post ID and User ID are required',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: '' },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Post ID and User ID are required',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when postId is invalid ObjectId', async () => {
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: 'invalid-post-id', userId: validUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Invalid ID format',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when userId is invalid ObjectId', async () => {
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: 'invalid-user-id' },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Invalid ID format',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws FORBIDDEN GraphQLError when reporting on behalf of another user', async () => {
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: otherUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Not authorized to report on behalf of another user',
+          extensions: expect.objectContaining({ code: 'FORBIDDEN' }),
+        })
+      );
+    });
+
+    it('throws NOT_FOUND GraphQLError when post does not exist', async () => {
+      (authContext.prisma.post.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: validUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Post not found',
+          extensions: expect.objectContaining({ code: 'NOT_FOUND' }),
+        })
+      );
+
+      expect(authContext.prisma.post.findUnique).toHaveBeenCalledWith({
+        where: { id: validPostId },
+        select: { userId: true, deleted: true },
+      });
+    });
+
+    it('throws NOT_FOUND GraphQLError when post is deleted', async () => {
+      (authContext.prisma.post.findUnique as jest.Mock).mockResolvedValue({
+        userId: otherUserId,
+        deleted: true,
+      });
+
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: validUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Post not found',
+          extensions: expect.objectContaining({ code: 'NOT_FOUND' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError when author attempts to report own post', async () => {
+      (authContext.prisma.post.findUnique as jest.Mock).mockResolvedValue({
+        userId: validUserId,
+        deleted: false,
+      });
+
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: validUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Cannot report your own post',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+    });
+
+    it('throws BAD_USER_INPUT GraphQLError on concurrency race if already reported', async () => {
+      (authContext.prisma.post.findUnique as jest.Mock)
+        .mockResolvedValueOnce({
+          userId: otherUserId,
+          deleted: false,
+        })
+        .mockResolvedValueOnce({
+          reportedBy: [validUserId],
+        });
+
+      (authContext.prisma.post.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: validUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'You have already reported this post',
+          extensions: expect.objectContaining({ code: 'BAD_USER_INPUT' }),
+        })
+      );
+
+      expect(authContext.prisma.post.updateMany).toHaveBeenCalledWith({
+        where: { id: validPostId, NOT: { reportedBy: { has: validUserId } } },
+        data: {
+          reportedBy: { push: validUserId },
+          reported: { increment: 1 },
+        },
+      });
+    });
+
+    it('throws NOT_FOUND GraphQLError when update matches nothing and post was deleted or missing on re-read', async () => {
+      (authContext.prisma.post.findUnique as jest.Mock)
+        .mockResolvedValueOnce({
+          userId: otherUserId,
+          deleted: false,
+        })
+        .mockResolvedValueOnce(null);
+
+      (authContext.prisma.post.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+
+      await expect(
+        postsResolver.Mutation.reportPost(
+          null,
+          { postId: validPostId, userId: validUserId },
+          authContext
+        )
+      ).rejects.toThrow(
+        expect.objectContaining({
+          message: 'Post not found',
+          extensions: expect.objectContaining({ code: 'NOT_FOUND' }),
+        })
+      );
+    });
+
+    it('successfully reports post and returns updated post object with tagId', async () => {
+      (authContext.prisma.post.findUnique as jest.Mock).mockResolvedValue({
+        userId: otherUserId,
+        deleted: false,
+      });
+
+      (authContext.prisma.post.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      (authContext.prisma.post.findUniqueOrThrow as jest.Mock).mockResolvedValue({
+        id: validPostId,
+        userId: otherUserId,
+        tagId,
+        title: 'Reported Post',
+        text: 'Post content',
+        reportedBy: [validUserId],
+        reported: 1,
+        votedBy: [],
+        created: new Date(),
+      });
+
+      (authContext.prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { id: otherUserId, username: 'bob', name: 'Bob' },
+      ]);
+
+      const result = await postsResolver.Mutation.reportPost(
+        null,
+        { postId: validPostId, userId: validUserId },
+        authContext
+      );
+
+      expect(authContext.prisma.post.updateMany).toHaveBeenCalledWith({
+        where: { id: validPostId, NOT: { reportedBy: { has: validUserId } } },
+        data: {
+          reportedBy: { push: validUserId },
+          reported: { increment: 1 },
+        },
+      });
+
+      expect(result).toMatchObject({
+        _id: validPostId,
+        userId: otherUserId,
+        tagId,
+        reportedBy: [validUserId],
+        reported: 1,
+      });
     });
   });
 });
