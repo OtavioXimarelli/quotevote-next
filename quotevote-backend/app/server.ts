@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import { schema } from './data/schema';
 import type { GraphQLContext } from './types/graphql';
 import { createHttpContext } from './context';
-import { disconnectPrisma } from './lib/prisma';
+import { disconnectPrisma, prisma } from './lib/prisma';
 import { startPresenceCleanup } from './data/utils/presence/cleanupStalePresence';
 import * as auth from './data/utils/authentication';
 
@@ -33,7 +33,7 @@ async function startServer() {
   }
 
   // Start Presence Cleanup Job
-  startPresenceCleanup();
+  startPresenceCleanup(prisma);
 
   // 2. Apollo Server Setup (v4/v5 Syntax)
   const server = new ApolloServer<GraphQLContext>({
