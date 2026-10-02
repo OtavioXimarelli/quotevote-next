@@ -106,7 +106,7 @@ async function buildPostQuery(
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
-    where.tagId = args.tagId;
+    where.groupId = args.tagId;
   }
 
   if (args.approved !== undefined) {

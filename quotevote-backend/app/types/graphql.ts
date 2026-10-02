@@ -345,7 +345,6 @@ export interface SubscriptionResolvers {
   notification: SubscriptionResolver<Common.Notification, { userId: string }>;
   message: SubscriptionResolver<Common.Message, { messageRoomId: string }>;
   typing: SubscriptionResolver<TypingPayload, { messageRoomId: string }>;
-  roster: SubscriptionResolver<RosterPayload, { userId: string }>;
 }
 
 /**

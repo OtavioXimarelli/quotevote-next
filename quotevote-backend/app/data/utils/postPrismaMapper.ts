@@ -2,8 +2,8 @@
  * Prisma → legacy-shape mapper for the Post entity.
  *
  * Prisma's generated Post record uses `id` and `enableVoting`; GraphQL Post
- * and Common.Post expect `_id` and `enable_voting`. `tagId` already matches
- * the GraphQL field (Mongo still stores `groupId` via @map).
+ * and Common.Post expect `_id` and `enable_voting`. Prisma exposes the
+ * persisted relationship as `groupId`; the public GraphQL field remains `tagId`.
  *
  * @see prisma/schema/post.prisma
  * @see app/types/common.ts — Common.Post target shape
@@ -21,7 +21,9 @@ export interface PrismaPostCreator {
 export interface PrismaPostRecord {
   id: string;
   userId: string;
-  tagId: string;
+  groupId?: string;
+  /** Legacy test/Mongoose shape retained while Prisma uses groupId. */
+  tagId?: string;
   title: string;
   text: string;
   url?: string | null;
@@ -71,7 +73,7 @@ export const POST_CREATOR_SELECT = {
 export const POST_RECORD_SELECT = {
   id: true,
   userId: true,
-  tagId: true,
+  groupId: true,
   title: true,
   text: true,
   url: true,
@@ -106,7 +108,7 @@ export function toGraphQLPost(
   return {
     _id: post.id,
     userId: post.userId,
-    tagId: post.tagId,
+    tagId: post.groupId ?? post.tagId ?? '',
     title: post.title,
     text: post.text,
     url: post.url ?? undefined,
