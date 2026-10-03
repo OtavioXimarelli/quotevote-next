@@ -44,7 +44,7 @@ describe('postPrismaMapper.toGraphQLPost', () => {
   it('omits legacy timestamp columns from the post select', () => {
     expect(POST_RECORD_SELECT).not.toHaveProperty('createdAt');
     expect(POST_RECORD_SELECT).not.toHaveProperty('updatedAt');
-    expect(POST_RECORD_SELECT).toMatchObject({ id: true, groupId: true, enableVoting: true });
+    expect(POST_RECORD_SELECT).toMatchObject({ id: true, tagId: true, enableVoting: true });
   });
 
   it('sets creator to null when no author is provided', () => {

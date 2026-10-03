@@ -78,7 +78,7 @@ describe('postsResolver', () => {
         {
           id: postId,
           userId,
-          groupId: tagId,
+          tagId,
           title: 'Title',
           text: 'Text',
           votedBy: [],
@@ -111,7 +111,7 @@ describe('postsResolver', () => {
       expect(ctx.prisma.post.findMany).toHaveBeenCalledWith({
         where: {
           deleted: { not: true },
-          groupId: tagId,
+          tagId,
           approved: { gt: 0 },
         },
         orderBy: [{ dayPoints: 'desc' }, { created: 'desc' }],
