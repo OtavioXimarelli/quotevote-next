@@ -2,7 +2,7 @@ import { GraphQLError } from 'graphql';
 import { ActivityEventTypeValues } from '~/data/utils/constants';
 import { logActivity } from '~/data/resolvers/utils/activities';
 import { updateTrending } from '~/data/resolvers/utils/posts';
-import { QUOTE_SELECT, toQuote } from '~/data/resolvers/utils/commentsQuotes';
+import { NOT_DELETED, QUOTE_SELECT, toQuote } from '~/data/resolvers/utils/commentsQuotes';
 import type * as Common from '~/types/common';
 import type { GraphQLContext } from '~/types/graphql';
 
@@ -30,8 +30,8 @@ export const quoteResolver = {
       context: GraphQLContext
     ): Promise<Common.Quote[]> => {
       const quotes = await context.prisma.quote.findMany({
-        // `{ not: true }` keeps legacy rows that never received a deleted field.
-        where: { deleted: { not: true } },
+        // NOT_DELETED keeps legacy rows that never received a deleted field.
+        where: { ...NOT_DELETED },
         orderBy: { created: 'desc' },
         take: args.limit > 0 ? Math.min(args.limit, MAX_LATEST_QUOTES) : MAX_LATEST_QUOTES,
         select: QUOTE_SELECT,

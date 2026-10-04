@@ -75,7 +75,9 @@ describe('quoteResolver', () => {
     const result = await quoteResolver.Query.latestQuotes({}, { limit: 5 }, context as never);
 
     expect(context.prisma.quote.findMany).toHaveBeenCalledWith({
-      where: { deleted: { not: true } },
+      where: {
+        OR: [{ deleted: false }, { deleted: { isSet: false } }],
+      },
       orderBy: { created: 'desc' },
       take: 5,
       select: QUOTE_SELECT,

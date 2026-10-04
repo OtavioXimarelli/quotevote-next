@@ -25,7 +25,7 @@ import Vote from '../models/Vote';
 import Presence from '../models/Presence';
 import Roster from '../models/Roster';
 import Tag from '../models/Tag';
-import { COMMENT_SELECT, toComment } from '~/data/resolvers/utils/commentsQuotes';
+import { COMMENT_SELECT, NOT_DELETED, toComment } from '~/data/resolvers/utils/commentsQuotes';
 
 export const UserType: GraphQLObjectType<Common.User, GraphQLContext> = new GraphQLObjectType<
   Common.User,
@@ -89,7 +89,7 @@ export const UserType: GraphQLObjectType<Common.User, GraphQLContext> = new Grap
       type: new GraphQLList(CommentType),
       resolve: async (user, _args, context) => {
         const comments = await context.prisma.comment.findMany({
-          where: { userId: user._id, deleted: { not: true } },
+          where: { userId: user._id, ...NOT_DELETED },
           orderBy: { created: 'desc' },
           select: COMMENT_SELECT,
         });

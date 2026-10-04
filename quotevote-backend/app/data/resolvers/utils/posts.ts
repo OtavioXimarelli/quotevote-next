@@ -25,12 +25,15 @@ export const updateTrending = async (prisma: PostsPrisma, postId: string): Promi
 
   const isWithin24hrs = post.pointTimestamp instanceof Date && post.pointTimestamp >= oneDayAgo;
 
+  // Select only id so Prisma does not re-read the full legacy post (missing
+  // createdAt) after the update — addComment/addQuote are the only callers.
   await prisma.post.update({
     where: { id: postId },
     data: {
       pointTimestamp: new Date(),
       dayPoints: isWithin24hrs ? (post.dayPoints ?? 0) + 1 : 1,
     },
+    select: { id: true },
   });
 };
 

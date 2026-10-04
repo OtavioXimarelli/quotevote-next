@@ -2,6 +2,15 @@ import type { Prisma } from '@prisma/client';
 import type * as Common from '~/types/common';
 
 /**
+ * Matches Mongo `$ne: true` for soft-delete filters. Prisma's `{ not: true }`
+ * only keeps `deleted: false` and drops legacy docs that never received the
+ * field (pre-Aug 2025). Include unset fields via `isSet: false`.
+ */
+export const NOT_DELETED: Prisma.CommentWhereInput & Prisma.QuoteWhereInput = {
+  OR: [{ deleted: false }, { deleted: { isSet: false } }],
+};
+
+/**
  * Fields read for a comment. Selected explicitly because legacy documents may
  * lack createdAt/updatedAt, and Prisma fails a read that returns a required
  * field it cannot find.
