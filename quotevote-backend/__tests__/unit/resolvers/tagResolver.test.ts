@@ -59,8 +59,6 @@ describe('tagResolver', () => {
         url: 'https://example.com/tech',
         description: 'Tech discussion group',
         created: new Date('2026-01-01T00:00:00Z'),
-        createdAt: new Date('2026-01-01T00:00:00Z'),
-        updatedAt: new Date('2026-01-02T00:00:00Z'),
       };
       (ctx.prisma.tag.findUnique as jest.Mock).mockResolvedValue(mockRecord);
 
@@ -80,7 +78,7 @@ describe('tagResolver', () => {
         url: 'https://example.com/tech',
         description: 'Tech discussion group',
         created: mockRecord.created,
-        updatedAt: mockRecord.updatedAt,
+        updatedAt: undefined,
       });
     });
 
@@ -123,8 +121,6 @@ describe('tagResolver', () => {
         url: null,
         description: null,
         created: new Date('2026-01-01T00:00:00Z'),
-        createdAt: new Date('2026-01-01T00:00:00Z'),
-        updatedAt: new Date('2026-01-01T00:00:00Z'),
       };
       (ctx.prisma.tag.findMany as jest.Mock).mockResolvedValue([mockRecord]);
 

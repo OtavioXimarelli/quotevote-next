@@ -23,7 +23,7 @@ describe('tagPrismaMapper', () => {
   });
 
   describe('TAG_RECORD_SELECT', () => {
-    it('selects expected fields from Prisma Tag model', () => {
+    it('selects expected fields from Prisma Tag model, omitting createdAt and updatedAt for legacy compatibility', () => {
       expect(TAG_RECORD_SELECT).toEqual({
         id: true,
         creatorId: true,
@@ -34,9 +34,9 @@ describe('tagPrismaMapper', () => {
         url: true,
         description: true,
         created: true,
-        createdAt: true,
-        updatedAt: true,
       });
+      expect(TAG_RECORD_SELECT).not.toHaveProperty('createdAt');
+      expect(TAG_RECORD_SELECT).not.toHaveProperty('updatedAt');
     });
   });
 

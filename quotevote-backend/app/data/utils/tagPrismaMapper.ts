@@ -9,12 +9,9 @@
  */
 
 import type * as Common from '~/types/common';
+import { isObjectId } from '~/data/resolvers/utils/common';
 
-const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/;
-
-export function isObjectId(id: string): boolean {
-  return OBJECT_ID_PATTERN.test(id);
-}
+export { isObjectId };
 
 export interface PrismaTagRecord {
   id: string;
@@ -30,6 +27,12 @@ export interface PrismaTagRecord {
   updatedAt?: Date | string | null;
 }
 
+/**
+ * Columns safe to read from legacy tags/groups.
+ * `createdAt` and `updatedAt` are required in the Prisma model, but legacy
+ * Mongoose groups have no timestamps. Selecting them throws P2032 when the
+ * stored value is null/missing, so they stay out of this select.
+ */
 export const TAG_RECORD_SELECT = {
   id: true,
   creatorId: true,
@@ -40,8 +43,6 @@ export const TAG_RECORD_SELECT = {
   url: true,
   description: true,
   created: true,
-  createdAt: true,
-  updatedAt: true,
 } as const;
 
 /**
