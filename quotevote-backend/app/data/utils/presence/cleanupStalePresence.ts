@@ -38,6 +38,7 @@ export const cleanupStalePresence = async (
       const lastSeen = new Date();
       await prismaClient.presence.update({
         where: { id: presence.id },
+        select: { id: true },
         data: {
           status: 'offline',
           lastSeen,

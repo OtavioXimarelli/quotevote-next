@@ -71,6 +71,7 @@ describe('cleanupStalePresence', () => {
     });
     expect(update).toHaveBeenCalledWith({
       where: { id: presenceId },
+      select: { id: true },
       data: {
         status: 'offline',
         lastSeen: now,
@@ -111,6 +112,7 @@ describe('cleanupStalePresence', () => {
 
     expect(update).toHaveBeenCalledWith({
       where: { id: presenceId },
+      select: { id: true },
       data: {
         status: 'offline',
         lastSeen: now,
@@ -136,6 +138,7 @@ describe('cleanupStalePresence', () => {
 
     expect(update).toHaveBeenCalledWith({
       where: { id: presenceId },
+      select: { id: true },
       data: {
         status: 'offline',
         lastSeen: now,
