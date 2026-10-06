@@ -80,7 +80,7 @@ export const VERIFY_PASSWORD_RESET_TOKEN = gql`
  */
 export const GROUPS_QUERY = gql`
   query groups($limit: Int!) {
-    groups: tags(limit: $limit) {
+    groups(limit: $limit) {
       _id
       creatorId
       adminIds
@@ -98,7 +98,7 @@ export const GROUPS_QUERY = gql`
  */
 export const GET_GROUP = gql`
   query getGroup($groupId: String!) {
-    group: tag(tagId: $groupId) {
+    group(groupId: $groupId) {
       _id
       title
     }
@@ -128,7 +128,7 @@ export const GET_POST = gql`
       _id
       userId
       created
-      groupId: tagId
+      groupId
       title
       text
       url
@@ -220,6 +220,7 @@ export const GET_TOP_POSTS = gql`
     $interactions: Boolean
     $userId: String
     $sortOrder: String
+    $groupId: String
   ) {
     posts(
       limit: $limit
@@ -231,11 +232,12 @@ export const GET_TOP_POSTS = gql`
       interactions: $interactions
       userId: $userId
       sortOrder: $sortOrder
+      groupId: $groupId
     ) {
       entities {
         _id
         userId
-        groupId: tagId
+        groupId
         title
         text
         upvotes
@@ -313,7 +315,7 @@ export const GET_PAGINATED_POSTS = gql`
       entities {
         _id
         userId
-        groupId: tagId
+        groupId
         title
         text
         upvotes
@@ -464,7 +466,7 @@ export const GET_FEATURED_POSTS = gql`
       entities {
         _id
         userId
-        groupId: tagId
+        groupId
         title
         text
         upvotes
@@ -647,7 +649,7 @@ export const SEARCH = gql`
         title
         text
         url
-        groupId: tagId
+        groupId
         creator {
           _id
           name

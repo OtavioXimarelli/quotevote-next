@@ -21,7 +21,7 @@ export interface SubscriptionServer {
 }
 
 export interface SubscriptionServerOptions {
-  schema?: GraphQLSchema;
+  schema: GraphQLSchema;
   contextFactory?: (
     connectionParams: Record<string, unknown> | undefined
   ) => Promise<WsGraphQLContext>;
@@ -29,10 +29,8 @@ export interface SubscriptionServerOptions {
 
 export function createSubscriptionServer(
   httpServer: HttpServer,
-  options: SubscriptionServerOptions = {}
+  options: SubscriptionServerOptions
 ): SubscriptionServer {
-  const executableSchema =
-    options.schema ?? (requireGraphqlWs('./data/schema') as { schema: GraphQLSchema }).schema;
   const wsServer = new WebSocketServer({
     server: httpServer,
     path: '/graphql',
@@ -40,7 +38,7 @@ export function createSubscriptionServer(
 
   const disposable = useServer(
     {
-      schema: executableSchema,
+      schema: options.schema,
       context: async (ctx) =>
         options.contextFactory
           ? options.contextFactory(ctx.connectionParams as Record<string, unknown> | undefined)

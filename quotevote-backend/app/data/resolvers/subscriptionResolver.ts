@@ -2,6 +2,7 @@ import { GraphQLError } from 'graphql';
 import type * as Common from '~/types/common';
 import { assertRoomAccess } from '~/data/utils/roomAccess';
 import { NOTIFICATION_CREATED } from '~/data/utils/constants';
+import { toGraphQLError } from '~/data/utils/graphqlErrors';
 import { SUBSCRIPTION_EVENTS, type GraphQLContext, type TypingPayload } from '~/types/graphql';
 
 type SubscriptionArgs = {
@@ -37,11 +38,15 @@ async function assertRoomSubscriptionAccess(
   messageRoomId: string
 ): Promise<void> {
   requireAuthenticated(context);
-  const room = await context.prisma.messageRoom.findUnique({
-    where: { id: messageRoomId },
-    select: { messageType: true, userIds: true },
-  });
-  assertRoomAccess(room, context.userId);
+  try {
+    const room = await context.prisma.messageRoom.findUnique({
+      where: { id: messageRoomId },
+      select: { messageType: true, userIds: true },
+    });
+    assertRoomAccess(room, context.userId);
+  } catch (error) {
+    throw toGraphQLError(error);
+  }
 }
 
 function matchesRoom(payload: SubscriptionPayload, variables: SubscriptionArgs): boolean {

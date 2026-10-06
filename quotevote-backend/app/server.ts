@@ -42,7 +42,7 @@ async function startServer() {
   });
 
   await server.start();
-  const subscriptionServer = createSubscriptionServer(httpServer);
+  const subscriptionServer = createSubscriptionServer(httpServer, { schema });
 
   // 3. Middleware & Routes Integration
   app.use(

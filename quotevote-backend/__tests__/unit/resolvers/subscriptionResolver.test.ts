@@ -60,12 +60,38 @@ describe('subscriptionResolver', () => {
     });
   });
 
+  it('rejects authenticated non-members from message subscriptions', async () => {
+    const context = createContext({
+      user: { _id: 'user-2', username: 'bob', email: 'bob@example.com' },
+      userId: 'user-2',
+    });
+
+    await expect(
+      subscriptionResolver.Subscription.message.subscribe(
+        null,
+        { messageRoomId: 'room-1' },
+        context
+      )
+    ).rejects.toEqual(expect.objectContaining({ extensions: { code: 'FORBIDDEN' } }));
+  });
+
   it('rejects typing subscriptions without authentication', async () => {
     const context = createContext({ user: null, userId: null });
 
     await expect(
       subscriptionResolver.Subscription.typing.subscribe(null, { messageRoomId: 'room-1' }, context)
     ).rejects.toEqual(expect.any(GraphQLError));
+  });
+
+  it('rejects authenticated non-members from typing subscriptions', async () => {
+    const context = createContext({
+      user: { _id: 'user-2', username: 'bob', email: 'bob@example.com' },
+      userId: 'user-2',
+    });
+
+    await expect(
+      subscriptionResolver.Subscription.typing.subscribe(null, { messageRoomId: 'room-1' }, context)
+    ).rejects.toEqual(expect.objectContaining({ extensions: { code: 'FORBIDDEN' } }));
   });
 
   it('filters presence events by user when a user ID is supplied', async () => {
