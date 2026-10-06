@@ -349,7 +349,6 @@ export interface SubscriptionResolvers {
   notification: SubscriptionResolver<Common.Notification, { userId: string }>;
   message: SubscriptionResolver<Common.Message, { messageRoomId: string }>;
   typing: SubscriptionResolver<TypingPayload, { messageRoomId: string }>;
-  roster: SubscriptionResolver<RosterPayload, { userId: string }>;
 }
 
 /**
@@ -469,17 +468,6 @@ export interface TypingPayload {
   timestamp: number;
 }
 
-export interface RosterPayload {
-  _id: string;
-  userId: string;
-  buddyId: string;
-  status: Common.RosterStatus;
-  initiatedBy?: string;
-  created: Date | string;
-  updated?: Date | string;
-  buddy?: Common.User;
-}
-
 // ============================================================================
 // Mutation Results
 // ============================================================================
@@ -520,7 +508,6 @@ export const SUBSCRIPTION_EVENTS = {
   MESSAGE_UPDATED: 'MESSAGE_UPDATED',
   MESSAGE_DELETED: 'MESSAGE_DELETED',
   TYPING_UPDATED: 'TYPING_UPDATED',
-  ROSTER_UPDATED: 'ROSTER_UPDATED',
   POST_CREATED: 'POST_CREATED',
   POST_UPDATED: 'POST_UPDATED',
   POST_DELETED: 'POST_DELETED',
