@@ -54,6 +54,7 @@ describe('posts resolver utilities', () => {
           pointTimestamp: expect.any(Date),
           dayPoints: 6,
         },
+        select: { id: true },
       });
     });
 
@@ -75,6 +76,7 @@ describe('posts resolver utilities', () => {
           pointTimestamp: expect.any(Date),
           dayPoints: 1,
         },
+        select: { id: true },
       });
     });
 
@@ -93,6 +95,7 @@ describe('posts resolver utilities', () => {
           pointTimestamp: expect.any(Date),
           dayPoints: 1,
         },
+        select: { id: true },
       });
     });
 
@@ -113,6 +116,7 @@ describe('posts resolver utilities', () => {
           pointTimestamp: expect.any(Date),
           dayPoints: 1,
         },
+        select: { id: true },
       });
     });
   });

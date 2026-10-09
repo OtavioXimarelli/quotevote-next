@@ -1,12 +1,21 @@
 // Resolver Utilities
 // Migrated from legacy JavaScript to TypeScript (issue 7.17)
 
-export { uniqueArrayObjects } from './common';
+export { uniqueArrayObjects, isObjectId, OBJECT_ID_PATTERN } from './common';
 export { logActivity } from './activities';
 export type { ActivityIds } from './activities';
 export { addNotification } from './notifications';
 export type { AddNotificationInput } from './notifications';
 export { updateTrending } from './posts';
+export {
+  COMMENT_SELECT,
+  QUOTE_SELECT,
+  REACTION_SELECT,
+  toComment,
+  toQuote,
+  toReaction,
+} from './commentsQuotes';
+export type { CommentRecord, QuoteRecord, ReactionRecord } from './commentsQuotes';
 export { scoreUtil, voteTypeUtil, upvotes, downvotes, topUsers } from './scores';
 export {
   calculateUserReputation,
@@ -17,4 +26,9 @@ export {
   recalculateAllReputations,
 } from './reputation';
 export type { ReputationData } from './reputation';
-export { getMessages, getUnreadMessages, addUserToPostRoom } from './messages';
+export {
+  getMessages,
+  getUnreadMessages,
+  addUserToPostRoom,
+  getReadableMessageRoom,
+} from './messages';

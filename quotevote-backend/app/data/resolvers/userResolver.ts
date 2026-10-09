@@ -2,9 +2,19 @@ import * as bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { Prisma } from '@prisma/client';
 import { normalizeBio } from '../utils/bioValidation';
-import { toPublicUser, type PrismaUserRecord } from '~/data/utils/userPrismaMapper';
+import {
+  PUBLIC_USER_SELECT,
+  toPublicUser,
+  type PrismaUserRecord,
+} from '~/data/utils/userPrismaMapper';
 import type * as Common from '~/types/common';
 import type { GraphQLContext } from '~/types/graphql';
+
+const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/;
+
+function isObjectId(id: string): boolean {
+  return OBJECT_ID_PATTERN.test(id);
+}
 
 type UpdateUserInput = {
   _id: string;
@@ -16,25 +26,6 @@ type UpdateUserInput = {
   bio?: string | null;
   contributorBadge?: boolean | null;
 };
-
-/**
- * Public profile fields — mirrors the Mongoose .select() whitelist.
- * Prisma field names (not the @map names): followingIds, followerIds, etc.
- * The mapper translates to legacy shape (_followingId, _followersId, etc.)
- */
-const PUBLIC_USER_SELECT = {
-  id: true,
-  name: true,
-  username: true,
-  avatar: true,
-  bio: true,
-  contributorBadge: true,
-  upvotes: true,
-  downvotes: true,
-  followingIds: true,
-  followerIds: true,
-  reputation: true,
-} as const;
 
 export const userResolver = {
   Query: {
@@ -337,6 +328,95 @@ export const userResolver = {
         }
         throw err;
       }
+    },
+
+    reportBot: async (
+      _parent: unknown,
+      args: { userId: string; reporterId: string },
+      context: GraphQLContext
+    ): Promise<{ code: string; message: string }> => {
+      if (!context?.user?._id) {
+        throw new GraphQLError('Authentication required', {
+          extensions: { code: 'UNAUTHENTICATED' },
+        });
+      }
+
+      if (!args.userId || !args.reporterId) {
+        throw new GraphQLError('User ID and Reporter ID are required', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      if (!isObjectId(args.userId) || !isObjectId(args.reporterId)) {
+        throw new GraphQLError('Invalid ID format', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      const actorId = context.user._id.toString();
+      if (actorId !== args.reporterId) {
+        throw new GraphQLError('Not authorized to report on behalf of another user', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      if (args.userId === args.reporterId) {
+        throw new GraphQLError('Cannot report yourself as a bot', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      const targetUser = await context.prisma.user.findUnique({
+        where: { id: args.userId },
+        select: { id: true },
+      });
+      if (!targetUser) {
+        throw new GraphQLError('User not found', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      const existingReport = await context.prisma.botReport.findFirst({
+        where: {
+          reporterId: args.reporterId,
+          userId: args.userId,
+        },
+        select: { id: true },
+      });
+      if (existingReport) {
+        throw new GraphQLError('You have already reported this user as a bot', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      try {
+        await context.prisma.botReport.create({
+          data: {
+            reporterId: args.reporterId,
+            userId: args.userId,
+          },
+        });
+      } catch (err: unknown) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          throw new GraphQLError('You have already reported this user as a bot', {
+            extensions: { code: 'BAD_USER_INPUT' },
+          });
+        }
+        throw err;
+      }
+
+      await context.prisma.user.update({
+        where: { id: args.userId },
+        data: {
+          botReports: { increment: 1 },
+          lastBotReportDate: new Date(),
+        },
+      });
+
+      return {
+        code: 'SUCCESS',
+        message: 'Bot report submitted successfully',
+      };
     },
   },
 };
